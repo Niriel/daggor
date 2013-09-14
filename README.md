@@ -1,4 +1,4 @@
 daggor
 ======
 
-Tile-based turned-based 3D game engine.
+Tile-based turne-based 3D game engine.
