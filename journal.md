@@ -1,9 +1,15 @@
-Installed the go bindings for glfw3
-===================================
-go get github.com/go-gl/glfw3
+Installing the go bindings for glfw3.
+=====================================
+    
+    go get github.com/go-gl/glfw3
 
-Installing glfw3
-================
+The last commit is 408297defc6a24b5dd60fca13504b37d4e35b6bf.
+
+
+
+Installing glfw3.
+=================
+
 Download page: http://www.glfw.org/download.html
 I chose to install from source.
 Because `go-gl/glfw3` documentation (https://github.com/go-gl/glfw3) says I need
@@ -109,4 +115,13 @@ Or I could run `ldconfig`.
 
 Looks like it works now.  I do not have to add my library path all the time.
 Yay, we have installed `glfw3`.
+
+
+
+Installing the go bindings for OpenGL.
+======================================
+
+    go get github.com/go-gl/gl
+
+The last commit is 4b3131d48842f804af76cd82f64f7520677cbece.
 
