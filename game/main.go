@@ -49,6 +49,61 @@ func (self *GlfwKeyEventList) Callback(w *glfw.Window, key glfw.Key, scancode in
 	self.list = append(self.list, GlfwKeyEvent{key, scancode, action, mods})
 }
 
+type Command int
+
+const (
+	COMMAND_FORWARD = Command(iota)
+	COMMAND_BACKWARD
+)
+
+func Commands(events []GlfwKeyEvent) []Command {
+	if len(events) == 0 {
+		return nil
+	}
+	result := make([]Command, 0, 1)
+	for _, event := range events {
+		switch event.key {
+		case glfw.KeyW:
+			if event.action == glfw.Press {
+				result = append(result, COMMAND_FORWARD)
+			}
+		case glfw.KeyS:
+			if event.action == glfw.Press {
+				result = append(result, COMMAND_BACKWARD)
+			}
+		}
+	}
+	return result
+}
+
+type ProgramState struct {
+	PlayerPos int
+}
+
+func NewPlayerPos(program_state ProgramState, command Command) int {
+	delta := 0
+	switch command {
+	case COMMAND_BACKWARD:
+		delta = -1
+	case COMMAND_FORWARD:
+		delta = 1
+	}
+	return program_state.PlayerPos + delta
+}
+
+func NewProgramState(program_state ProgramState, commands []Command) ProgramState {
+	if len(commands) == 0 {
+		return program_state
+	}
+	var new_state ProgramState
+	playerPos := program_state.PlayerPos
+	for _, command := range commands {
+		playerPos = NewPlayerPos(program_state, command)
+	}
+	new_state.PlayerPos = playerPos
+	return new_state
+}
+
 func main() {
 	glfw.SetErrorCallback(errorCallback)
 
@@ -95,7 +150,7 @@ func main() {
 	fsh_code := `
 	#version 330 core
     out vec3 color;
- 
+
     void main(){
         color = vec3(1,0,0);
     }
@@ -122,11 +177,12 @@ func main() {
 		0,
 		nil)
 
+	var program_state ProgramState
 	for !window.ShouldClose() {
 		keys := glfwKeyEventList.Freeze()
-		if len(keys) != 0 {
-			fmt.Println(keys)
-		}
+		commands := Commands(keys)
+		program_state = NewProgramState(program_state, commands)
+		fmt.Println(program_state)
 		gl.ClearColor(0.0, 0.0, 0.4, 0.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		gl.DrawArrays(gl.TRIANGLES, 0, 3)

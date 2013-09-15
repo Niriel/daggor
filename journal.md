@@ -140,3 +140,13 @@ process.  They will be the events received since the last frame.
 I double buffer keyboard events to avoid the list to grow while I am processing
 it.
 
+State.
+------
+The game has a state now.  Currently, the state is just a player position stored
+as an `int`.  The state is immutable.  Well, it technically IS mutable, but I
+refuse to mutate it.
+Keyboard events are translated into commands, and commands affect the state.
+A new state is then created.
+This is how, by pressing W and S, we can change the player position (displayed
+in the console).
+
