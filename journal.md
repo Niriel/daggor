@@ -150,3 +150,13 @@ A new state is then created.
 This is how, by pressing W and S, we can change the player position (displayed
 in the console).
 
+Move in a 3D world.
+-------------------
+I want to link the player position from the state discussed above to an actual
+modification of what is displayed.
+So I created a 3D cube, and extended its shader to take a MVP matrix as a
+uniform.
+Then I brought my the `glm` library that I had written in the past and adapted
+it to `go-gl`.
+By pressing the W and S keys, the red cube moves because the player moves.
+

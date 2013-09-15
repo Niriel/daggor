@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-gl/gl"
 	glfw "github.com/go-gl/glfw3"
+	"github.com/niriel/daggor/glm"
 	"runtime"
 	"unsafe"
 )
@@ -49,7 +50,7 @@ func (self *GlfwKeyEventList) Callback(w *glfw.Window, key glfw.Key, scancode in
 	self.list = append(self.list, GlfwKeyEvent{key, scancode, action, mods})
 }
 
-func CubeMesh() {
+func CubeMesh() gl.UniformLocation {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
 	vertices := [...]gl.GLfloat{
@@ -80,9 +81,9 @@ func CubeMesh() {
 	vsh_code := `
 	#version 330 core
 	in vec3 vpos;
+	uniform mat4 mvp;
 	void main(){
-		gl_Position.xyz = vpos;
-        gl_Position.w = 1.0;
+		gl_Position = mvp * vec4(vpos, 1.0);
 	}
 	`
 	fsh_code := `
@@ -114,6 +115,8 @@ func CubeMesh() {
 		false,
 		0,
 		nil)
+	mvp := program.GetUniformLocation("mvp")
+	return mvp
 }
 
 type Command int
@@ -180,6 +183,7 @@ func main() {
 	glfw.WindowHint(glfw.ContextVersionMajor, 3)
 	glfw.WindowHint(glfw.ContextVersionMinor, 3)
 	glfw.WindowHint(glfw.SrgbCapable, 1)
+	glfw.WindowHint(glfw.Resizable, 0)
 	window, err := glfw.CreateWindow(640, 480, "Daggor", nil, nil)
 	if err != nil {
 		panic(err)
@@ -193,16 +197,22 @@ func main() {
 	ec := gl.Init()
 	fmt.Println("OpenGL error code", ec)
 
-	CubeMesh()
+	uniform_mvp := CubeMesh()
+	fmt.Println(uniform_mvp)
+	m := glm.Vector3{0, 5, 0}.Translation()
+	p := glm.PerspectiveProj(80, 1, .1, 100).Mult(glm.ZUP)
 
 	var program_state ProgramState
 	for !window.ShouldClose() {
 		keys := glfwKeyEventList.Freeze()
 		commands := Commands(keys)
 		program_state = NewProgramState(program_state, commands)
+		v := glm.Vector3{float64(program_state.PlayerPos), 0, 0}.Translation()
 		fmt.Println(program_state)
 		gl.ClearColor(0.0, 0.0, 0.4, 0.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+		mvp := p.Mult(v).Mult(m).Gl()
+		uniform_mvp.UniformMatrix4f(false, &mvp)
 		gl.DrawElements(gl.TRIANGLE_STRIP, 14, gl.UNSIGNED_BYTE, nil)
 		window.SwapBuffers()
 		glfw.PollEvents()
