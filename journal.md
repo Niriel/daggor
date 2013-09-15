@@ -125,3 +125,18 @@ Installing the go bindings for OpenGL.
 
 The last commit is 4b3131d48842f804af76cd82f64f7520677cbece.
 
+
+Interactivity.
+==============
+
+Keyboard input.
+---------------
+Safety before speed.
+Several keys can be pressed or released during a frame.
+I do not want to be interrupted all the time during the computations of a frame,
+though.
+Therefore I want that, for a given frame, there be a fixed list of events to
+process.  They will be the events received since the last frame.
+I double buffer keyboard events to avoid the list to grow while I am processing
+it.
+

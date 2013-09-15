@@ -17,6 +17,38 @@ func errorCallback(err glfw.ErrorCode, desc string) {
 	fmt.Printf("%v: %v\n", err, desc)
 }
 
+type GlfwKeyEvent struct {
+	key      glfw.Key
+	scancode int
+	action   glfw.Action
+	mods     glfw.ModifierKey
+}
+
+const EVENT_LIST_CAP = 4
+
+type GlfwKeyEventList struct {
+	list []GlfwKeyEvent
+}
+
+func MakeGlfwKeyEventList() GlfwKeyEventList {
+	return GlfwKeyEventList{
+		make([]GlfwKeyEvent, 0, EVENT_LIST_CAP),
+	}
+}
+
+func (self *GlfwKeyEventList) Freeze() []GlfwKeyEvent {
+	// The list of key events is double buffered.  This allows the application
+	// to process events during a frame without having to worry about new
+	// events arriving and growing the list.
+	result := make([]GlfwKeyEvent, 0, EVENT_LIST_CAP)
+	result, self.list = self.list, result
+	return result
+}
+
+func (self *GlfwKeyEventList) Callback(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+	self.list = append(self.list, GlfwKeyEvent{key, scancode, action, mods})
+}
+
 func main() {
 	glfw.SetErrorCallback(errorCallback)
 
@@ -25,14 +57,17 @@ func main() {
 	}
 	defer glfw.Terminate()
 
-	//glfw.WindowHint(glfw.ContextVersionMajor, 3)
-	//glfw.WindowHint(glfw.ContextVersionMinor, 3)
-	//glfw.WindowHint(glfw.SrgbCapable, 1)
+	glfw.WindowHint(glfw.ContextVersionMajor, 3)
+	glfw.WindowHint(glfw.ContextVersionMinor, 3)
+	glfw.WindowHint(glfw.SrgbCapable, 1)
 	window, err := glfw.CreateWindow(640, 480, "Daggor", nil, nil)
 	if err != nil {
 		panic(err)
 	}
 	defer window.Destroy()
+
+	glfwKeyEventList := MakeGlfwKeyEventList()
+	window.SetKeyCallback(glfwKeyEventList.Callback)
 
 	window.MakeContextCurrent()
 	ec := gl.Init()
@@ -88,6 +123,10 @@ func main() {
 		nil)
 
 	for !window.ShouldClose() {
+		keys := glfwKeyEventList.Freeze()
+		if len(keys) != 0 {
+			fmt.Println(keys)
+		}
 		gl.ClearColor(0.0, 0.0, 0.4, 0.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		gl.DrawArrays(gl.TRIANGLES, 0, 3)
