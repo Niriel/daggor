@@ -40,8 +40,8 @@ func (self *GlfwKeyEventList) Freeze() []GlfwKeyEvent {
 	// The list of key events is double buffered.  This allows the application
 	// to process events during a frame without having to worry about new
 	// events arriving and growing the list.
-	result := make([]GlfwKeyEvent, 0, EVENT_LIST_CAP)
-	result, self.list = self.list, result
+	result := self.list
+	self.list = make([]GlfwKeyEvent, 0, EVENT_LIST_CAP)
 	return result
 }
 
