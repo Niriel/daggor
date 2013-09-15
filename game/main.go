@@ -49,6 +49,73 @@ func (self *GlfwKeyEventList) Callback(w *glfw.Window, key glfw.Key, scancode in
 	self.list = append(self.list, GlfwKeyEvent{key, scancode, action, mods})
 }
 
+func CubeMesh() {
+	const p = .5 // Plus sign.
+	const m = -p // Minus sign.
+	vertices := [...]gl.GLfloat{
+		m, m, m,
+		m, m, p,
+		m, p, m,
+		m, p, p,
+		p, m, m,
+		p, m, p,
+		p, p, m,
+		p, p, p,
+	}
+	// Indices for triangle strip adapted from
+	// http://www.cs.umd.edu/gvil/papers/av_ts.pdf .
+	// I mirrored their cube to have CCW, and I used a natural order to
+	// number the vertices (see above, it's binary code).
+	indices := [...]gl.GLubyte{
+		6, 2, 7, 3, 1, 2, 0, 6, 4, 7, 5, 1, 4, 0,
+	}
+	vao := gl.GenVertexArray()
+	vao.Bind()
+	vbuf := gl.GenBuffer()
+	vbuf.Bind(gl.ARRAY_BUFFER)
+	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.STATIC_DRAW)
+	ebuf := gl.GenBuffer()
+	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
+	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
+	vsh_code := `
+	#version 330 core
+	in vec3 vpos;
+	void main(){
+		gl_Position.xyz = vpos;
+        gl_Position.w = 1.0;
+	}
+	`
+	fsh_code := `
+	#version 330 core
+    out vec3 color;
+
+    void main(){
+        color = vec3(1,0,0);
+    }
+	`
+	vsh := gl.CreateShader(gl.VERTEX_SHADER)
+	vsh.Source(vsh_code)
+	vsh.Compile()
+	fsh := gl.CreateShader(gl.FRAGMENT_SHADER)
+	fsh.Source(fsh_code)
+	fsh.Compile()
+	program := gl.CreateProgram()
+	program.AttachShader(vsh)
+	program.AttachShader(fsh)
+	program.Link()
+	program.Use()
+	fmt.Println(program.GetInfoLog())
+
+	att := program.GetAttribLocation("vpos")
+	att.EnableArray()
+	att.AttribPointer(
+		3,
+		gl.FLOAT,
+		false,
+		0,
+		nil)
+}
+
 type Command int
 
 const (
@@ -126,54 +193,7 @@ func main() {
 	ec := gl.Init()
 	fmt.Println("OpenGL error code", ec)
 
-	vao := gl.GenVertexArray()
-	vao.Bind()
-	vertices := [...]gl.GLfloat{
-		-1.0, -1.0, 0.0,
-		1.0, -1.0, 0.0,
-		0.0, 1.0, 0.0,
-	}
-	vbuf := gl.GenBuffer()
-	vbuf.Bind(gl.ARRAY_BUFFER)
-	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.STATIC_DRAW)
-
-	vsh_code := `
-	#version 330 core
-	in vec3 vpos;
-	void main(){
-		gl_Position.xyz = vpos;
-        gl_Position.w = 1.0;
-	}
-	`
-	fsh_code := `
-	#version 330 core
-    out vec3 color;
-
-    void main(){
-        color = vec3(1,0,0);
-    }
-	`
-	vsh := gl.CreateShader(gl.VERTEX_SHADER)
-	vsh.Source(vsh_code)
-	vsh.Compile()
-	fsh := gl.CreateShader(gl.FRAGMENT_SHADER)
-	fsh.Source(fsh_code)
-	fsh.Compile()
-	program := gl.CreateProgram()
-	program.AttachShader(vsh)
-	program.AttachShader(fsh)
-	program.Link()
-	program.Use()
-	fmt.Println(program.GetInfoLog())
-
-	att := program.GetAttribLocation("vpos")
-	att.EnableArray()
-	att.AttribPointer(
-		3,
-		gl.FLOAT,
-		false,
-		0,
-		nil)
+	CubeMesh()
 
 	var program_state ProgramState
 	for !window.ShouldClose() {
@@ -183,7 +203,7 @@ func main() {
 		fmt.Println(program_state)
 		gl.ClearColor(0.0, 0.0, 0.4, 0.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-		gl.DrawArrays(gl.TRIANGLES, 0, 3)
+		gl.DrawElements(gl.TRIANGLE_STRIP, 14, gl.UNSIGNED_BYTE, nil)
 		window.SwapBuffers()
 		glfw.PollEvents()
 	}
