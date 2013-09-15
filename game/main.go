@@ -95,12 +95,10 @@ func NewProgramState(program_state ProgramState, commands []Command) ProgramStat
 	if len(commands) == 0 {
 		return program_state
 	}
-	var new_state ProgramState
-	playerPos := program_state.PlayerPos
+	new_state := program_state // Copy.
 	for _, command := range commands {
-		playerPos = NewPlayerPos(program_state, command)
+		new_state.PlayerPos = NewPlayerPos(new_state, command)
 	}
-	new_state.PlayerPos = playerPos
 	return new_state
 }
 
