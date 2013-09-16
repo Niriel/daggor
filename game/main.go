@@ -97,17 +97,20 @@ func CubeMesh() Drawable {
 	vsh_code := `
 	#version 330 core
 	in vec3 vpos;
+	out vec3 fpos;
 	uniform mat4 mvp;
 	void main(){
 		gl_Position = mvp * vec4(vpos, 1.0);
+		fpos = gl_Position.xyz;
 	}
 	`
 	fsh_code := `
 	#version 330 core
+    in vec3 fpos;
     out vec3 color;
 
     void main(){
-        color = vec3(1,0,0);
+        color = vec3(1.0 - fpos.z *.1, 0, 0);
     }
 	`
 	vsh := gl.CreateShader(gl.VERTEX_SHADER)
@@ -146,7 +149,7 @@ func PyramidMesh() Drawable {
 		0, 0, p,
 	}
 	indices := [...]gl.GLubyte{
-		1, 3, 4, 2, 0, 3, 1, 4,
+		1, 4, 3, 2, 1, 0, 4, 2,
 	}
 	vao := gl.GenVertexArray()
 	vao.Bind()
@@ -159,17 +162,20 @@ func PyramidMesh() Drawable {
 	vsh_code := `
 	#version 330 core
 	in vec3 vpos;
+	out vec3 fpos;
 	uniform mat4 mvp;
 	void main(){
 		gl_Position = mvp * vec4(vpos, 1.0);
+		fpos = gl_Position.xyz;
 	}
 	`
 	fsh_code := `
 	#version 330 core
+	in vec3 fpos;
     out vec3 color;
 
     void main(){
-        color = vec3(0,1,0);
+        color = vec3(0,1.0 - fpos.z *.1, 0);
     }
 	`
 	vsh := gl.CreateShader(gl.VERTEX_SHADER)
@@ -291,7 +297,11 @@ func main() {
 		glm.Vector3{7, 3, 0},
 	}
 
-	p := glm.PerspectiveProj(80, 1, .1, 100).Mult(glm.ZUP)
+	p := glm.PerspectiveProj(80, 640./480., .1, 100).Mult(glm.ZUP)
+
+	gl.Enable(gl.CULL_FACE)
+	//gl.CullFace(gl.BACK)
+	//gl.FrontFace(gl.CCW)
 
 	var program_state ProgramState
 	for !window.ShouldClose() {
