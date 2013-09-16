@@ -50,7 +50,21 @@ func (self *GlfwKeyEventList) Callback(w *glfw.Window, key glfw.Key, scancode in
 	self.list = append(self.list, GlfwKeyEvent{key, scancode, action, mods})
 }
 
-func CubeMesh() gl.UniformLocation {
+type Drawable struct {
+	vao        gl.VertexArray
+	mvp        gl.UniformLocation
+	n_elements int
+}
+
+func (self *Drawable) Draw(mvp_matrix *[16]float32) {
+	// Bindind the VAO each time is not efficient but
+	// it is correct.
+	self.vao.Bind()
+	self.mvp.UniformMatrix4f(false, mvp_matrix)
+	gl.DrawElements(gl.TRIANGLE_STRIP, self.n_elements, gl.UNSIGNED_BYTE, nil)
+}
+
+func CubeMesh() Drawable {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
 	vertices := [...]gl.GLfloat{
@@ -116,7 +130,69 @@ func CubeMesh() gl.UniformLocation {
 		0,
 		nil)
 	mvp := program.GetUniformLocation("mvp")
-	return mvp
+	return Drawable{vao, mvp, len(indices)}
+}
+
+func PyramidMesh() Drawable {
+	const p = .5 // Plus sign.
+	const m = -p // Minus sign.
+	vertices := [...]gl.GLfloat{
+		m, m, m,
+		m, p, m,
+		p, m, m,
+		p, p, m,
+		0, 0, p,
+	}
+	indices := [...]gl.GLubyte{
+		1, 3, 4, 2, 0, 3, 1, 4,
+	}
+	vao := gl.GenVertexArray()
+	vao.Bind()
+	vbuf := gl.GenBuffer()
+	vbuf.Bind(gl.ARRAY_BUFFER)
+	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.STATIC_DRAW)
+	ebuf := gl.GenBuffer()
+	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
+	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
+	vsh_code := `
+	#version 330 core
+	in vec3 vpos;
+	uniform mat4 mvp;
+	void main(){
+		gl_Position = mvp * vec4(vpos, 1.0);
+	}
+	`
+	fsh_code := `
+	#version 330 core
+    out vec3 color;
+
+    void main(){
+        color = vec3(0,1,0);
+    }
+	`
+	vsh := gl.CreateShader(gl.VERTEX_SHADER)
+	vsh.Source(vsh_code)
+	vsh.Compile()
+	fsh := gl.CreateShader(gl.FRAGMENT_SHADER)
+	fsh.Source(fsh_code)
+	fsh.Compile()
+	program := gl.CreateProgram()
+	program.AttachShader(vsh)
+	program.AttachShader(fsh)
+	program.Link()
+	program.Use()
+	fmt.Println(program.GetInfoLog())
+
+	att := program.GetAttribLocation("vpos")
+	att.EnableArray()
+	att.AttribPointer(
+		3,
+		gl.FLOAT,
+		false,
+		0,
+		nil)
+	mvp := program.GetUniformLocation("mvp")
+	return Drawable{vao, mvp, len(indices)}
 }
 
 type Command int
@@ -197,8 +273,7 @@ func main() {
 	ec := gl.Init()
 	fmt.Println("OpenGL error code", ec)
 
-	uniform_mvp := CubeMesh()
-	fmt.Println(uniform_mvp)
+	drawable := PyramidMesh()
 	m := glm.Vector3{0, 5, 0}.Translation()
 	p := glm.PerspectiveProj(80, 1, .1, 100).Mult(glm.ZUP)
 
@@ -212,8 +287,7 @@ func main() {
 		gl.ClearColor(0.0, 0.0, 0.4, 0.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		mvp := p.Mult(v).Mult(m).Gl()
-		uniform_mvp.UniformMatrix4f(false, &mvp)
-		gl.DrawElements(gl.TRIANGLE_STRIP, 14, gl.UNSIGNED_BYTE, nil)
+		drawable.Draw(&mvp)
 		window.SwapBuffers()
 		glfw.PollEvents()
 	}
