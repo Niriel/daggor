@@ -13,7 +13,6 @@ package glm
 
 import (
 	"fmt"
-	gl "github.com/chsc/gogl/gl33"
 	"math"
 )
 
@@ -278,20 +277,20 @@ func (self Vector4) TranslationInv() Matrix4 {
 	return t
 }
 
-func (self Vector3) Gl() [3]gl.Float {
-	return [3]gl.Float{
-		gl.Float(self[0]),
-		gl.Float(self[1]),
-		gl.Float(self[2]),
+func (self Vector3) Gl() [3]float32 {
+	return [3]float32{
+		float32(self[0]),
+		float32(self[1]),
+		float32(self[2]),
 	}
 }
 
-func (self Vector4) Gl() [4]gl.Float {
-	return [4]gl.Float{
-		gl.Float(self[0]),
-		gl.Float(self[1]),
-		gl.Float(self[2]),
-		gl.Float(self[3]),
+func (self Vector4) Gl() [4]float32 {
+	return [4]float32{
+		float32(self[0]),
+		float32(self[1]),
+		float32(self[2]),
+		float32(self[3]),
 	}
 }
 

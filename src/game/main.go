@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/go-gl/gl"
 	glfw "github.com/go-gl/glfw3"
-	"github.com/niriel/daggor/glm"
+	"glm" // Local import, make sure Daggor is in your gopath.
 	"runtime"
 	"time"
 	"unsafe"
@@ -351,13 +351,16 @@ func main() {
 	pyramid := PyramidMesh()
 
 	shapes := [...]Drawable{
-		pyramid, cube, cube, cube,
+		cube, cube, pyramid, cube, pyramid, pyramid, cube,
 	}
 	positions := [len(shapes)]glm.Vector3{
-		glm.Vector3{2, 0, 0},
-		glm.Vector3{0, 2, 0},
-		glm.Vector3{-2, 0, 0},
-		glm.Vector3{0, 0, 2},
+		glm.Vector3{0, 4, 0},
+		glm.Vector3{1, 3, 0},
+		glm.Vector3{-1, 3, 0},
+		glm.Vector3{0, 5, 2},
+		glm.Vector3{-3, 1, 0},
+		glm.Vector3{2, 2, -1},
+		glm.Vector3{7, 3, 0},
 	}
 
 	// I do not like the default reference frame of OpenGl.
