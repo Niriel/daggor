@@ -53,6 +53,7 @@ func (self *GlfwKeyEventList) Callback(w *glfw.Window, key glfw.Key, scancode in
 type Drawable struct {
 	vao        gl.VertexArray
 	mvp        gl.UniformLocation
+	program    gl.Program
 	n_elements int
 }
 
@@ -60,6 +61,7 @@ func (self *Drawable) Draw(mvp_matrix *[16]float32) {
 	// Bindind the VAO each time is not efficient but
 	// it is correct.
 	self.vao.Bind()
+	self.program.Use()
 	self.mvp.UniformMatrix4f(false, mvp_matrix)
 	gl.DrawElements(gl.TRIANGLE_STRIP, self.n_elements, gl.UNSIGNED_BYTE, nil)
 }
@@ -130,7 +132,7 @@ func CubeMesh() Drawable {
 		0,
 		nil)
 	mvp := program.GetUniformLocation("mvp")
-	return Drawable{vao, mvp, len(indices)}
+	return Drawable{vao, mvp, program, len(indices)}
 }
 
 func PyramidMesh() Drawable {
@@ -192,7 +194,7 @@ func PyramidMesh() Drawable {
 		0,
 		nil)
 	mvp := program.GetUniformLocation("mvp")
-	return Drawable{vao, mvp, len(indices)}
+	return Drawable{vao, mvp, program, len(indices)}
 }
 
 type Command int
@@ -273,8 +275,22 @@ func main() {
 	ec := gl.Init()
 	fmt.Println("OpenGL error code", ec)
 
-	drawable := PyramidMesh()
-	m := glm.Vector3{0, 5, 0}.Translation()
+	cube := CubeMesh()
+	pyramid := PyramidMesh()
+
+	shapes := [...]Drawable{
+		cube, cube, pyramid, cube, pyramid, pyramid, cube,
+	}
+	positions := [len(shapes)]glm.Vector3{
+		glm.Vector3{0, 4, 0},
+		glm.Vector3{1, 3, 0},
+		glm.Vector3{-1, 3, 0},
+		glm.Vector3{0, 5, 2},
+		glm.Vector3{-3, 1, 0},
+		glm.Vector3{2, 2, -1},
+		glm.Vector3{7, 3, 0},
+	}
+
 	p := glm.PerspectiveProj(80, 1, .1, 100).Mult(glm.ZUP)
 
 	var program_state ProgramState
@@ -286,8 +302,13 @@ func main() {
 		fmt.Println(program_state)
 		gl.ClearColor(0.0, 0.0, 0.4, 0.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-		mvp := p.Mult(v).Mult(m).Gl()
-		drawable.Draw(&mvp)
+		for i := 0; i < len(shapes); i++ {
+			shape := shapes[i]
+			position := positions[i]
+			m := position.Translation()
+			mvp := p.Mult(v).Mult(m).Gl()
+			shape.Draw(&mvp)
+		}
 		window.SwapBuffers()
 		glfw.PollEvents()
 	}

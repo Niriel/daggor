@@ -160,3 +160,9 @@ Then I brought my the `glm` library that I had written in the past and adapted
 it to `go-gl`.
 By pressing the W and S keys, the red cube moves because the player moves.
 
+The next step is to be able to display several models using different shaders.
+I added a green pyramid to the code, next to the red cube.
+Now I can display a bunch of these with a loop.
+Note that the location of the pyramid and cubes are not owned by these shapes.
+These shapes act as functions: draw a cube here, draw a pyramid there.
+
