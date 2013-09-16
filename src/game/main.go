@@ -288,8 +288,36 @@ func (self PlayerState) ViewMatrix() glm.Matrix4 {
 	return R.Mult(T)
 }
 
+const LANDSCAPE_SIZE = 16
+
+type LandscapeState struct {
+	tiles [LANDSCAPE_SIZE * LANDSCAPE_SIZE]*Drawable
+}
+
+func (self LandscapeState) Tile(x, y int) *Drawable {
+	if (x < 0) || (x >= LANDSCAPE_SIZE) {
+		panic("Landscape x index out of range.")
+	}
+	if (y < 0) || (y >= LANDSCAPE_SIZE) {
+		panic("Landscape y index out of range.")
+	}
+	return self.tiles[y*LANDSCAPE_SIZE+x]
+}
+
+func (self LandscapeState) SetTile(x, y int, drawable *Drawable) LandscapeState {
+	if (x < 0) || (x >= LANDSCAPE_SIZE) {
+		panic("Landscape x index out of range.")
+	}
+	if (y < 0) || (y >= LANDSCAPE_SIZE) {
+		panic("Landscape y index out of range.")
+	}
+	self.tiles[y*LANDSCAPE_SIZE+x] = drawable
+	return self
+}
+
 type ProgramState struct {
-	Player PlayerState
+	Player    PlayerState
+	Landscape LandscapeState
 }
 
 func NewPlayerPos(player_state PlayerState, command Command) PlayerState {
@@ -347,21 +375,19 @@ func main() {
 	ec := gl.Init()
 	fmt.Println("OpenGL error code", ec)
 
+	var program_state ProgramState
+
 	cube := CubeMesh()
 	pyramid := PyramidMesh()
-
-	shapes := [...]Drawable{
-		cube, cube, pyramid, cube, pyramid, pyramid, cube,
-	}
-	positions := [len(shapes)]glm.Vector3{
-		glm.Vector3{0, 4, 0},
-		glm.Vector3{1, 3, 0},
-		glm.Vector3{-1, 3, 0},
-		glm.Vector3{0, 5, 2},
-		glm.Vector3{-3, 1, 0},
-		glm.Vector3{2, 2, -1},
-		glm.Vector3{7, 3, 0},
-	}
+	landscape := program_state.Landscape
+	landscape = landscape.SetTile(0, 4, &cube)
+	landscape = landscape.SetTile(1, 3, &cube)
+	landscape = landscape.SetTile(0, 3, &pyramid)
+	landscape = landscape.SetTile(0, 5, &cube)
+	landscape = landscape.SetTile(1, 6, &pyramid)
+	landscape = landscape.SetTile(2, 2, &pyramid)
+	landscape = landscape.SetTile(7, 3, &cube)
+	program_state.Landscape = landscape
 
 	// I do not like the default reference frame of OpenGl.
 	// By default, we look in the direction -z, and y points up.
@@ -380,21 +406,22 @@ func main() {
 	gl.CullFace(gl.BACK)
 	gl.FrontFace(gl.CCW)
 
-	var program_state ProgramState
 	for !window.ShouldClose() {
 		keys := glfwKeyEventList.Freeze()
 		commands := Commands(keys)
 		program_state = NewProgramState(program_state, commands)
-		fmt.Println(program_state)
 		v := program_state.Player.ViewMatrix()
 		gl.ClearColor(0.0, 0.0, 0.4, 0.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-		for i := 0; i < len(shapes); i++ {
-			shape := shapes[i]
-			position := positions[i]
-			m := position.Translation()
-			mvp := p.Mult(v).Mult(m).Gl()
-			shape.Draw(&mvp)
+		for x := 0; x < LANDSCAPE_SIZE; x++ {
+			for y := 0; y < LANDSCAPE_SIZE; y++ {
+				shape := program_state.Landscape.Tile(x, y)
+				if shape != nil {
+					m := glm.Vector3{float64(x), float64(y), 0}.Translation()
+					mvp := p.Mult(v).Mult(m).Gl()
+					shape.Draw(&mvp)
+				}
+			}
 		}
 		window.SwapBuffers()
 		time.Sleep(15 * time.Millisecond)

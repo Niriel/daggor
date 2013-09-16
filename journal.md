@@ -186,3 +186,11 @@ rotation matrix to apply before doing the projection.  Actually, I even embed
 this rotation inside the projection matrix, then I can forget about it.
 Note that having z pointing up matches Blender's default frame, which is nice.
 
+The world in memory.
+====================
+I created a structure that would contain the state of the world.  For now, it
+just contains the landscape (name chosen to avoid clashing with the keyword
+"map").  That structure, as always, is immutable.  Each frame, that landscape
+is analyzed and draw calls are performed.  Visually, it looks like before.  But
+now, I should be able to change the landscape while playing.
+
