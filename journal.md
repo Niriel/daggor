@@ -166,3 +166,23 @@ Now I can display a bunch of these with a loop.
 Note that the location of the pyramid and cubes are not owned by these shapes.
 These shapes act as functions: draw a cube here, draw a pyramid there.
 
+I implemented the movements along x and y.  Use WASD and QE.  W goes forward,
+S goes backward, A strafes left, D strafes right, Q rotates 90 degrees direct
+(makes you face what used to be on your left) and E rotates 90 degrees
+retrograde (turn right).
+
+To do that, I had to augment the state of the world with two variables, for a
+total of three: X and Y for the position of the player, and F for his facing.
+I keep them all integers.  A player position can produce a corresponding view
+matrix.  At first I got the multiplication of the rotation and the translation
+wrong.  We want to apply the translation first, then rotate, not the other way
+around.
+
+I also had to decide a reference frame for the facing.  In accordance with
+trigonometric conventions, a facing (angle) of 0 makes you look toward +x.
+That, plus the fact that I like my z axis pointing up, forces me to depart from
+the natural OpenGL reference frame.  It is not a big change though, just a
+rotation matrix to apply before doing the projection.  Actually, I even embed
+this rotation inside the projection matrix, then I can forget about it.
+Note that having z pointing up matches Blender's default frame, which is nice.
+

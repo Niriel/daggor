@@ -7,6 +7,7 @@ import (
 	glfw "github.com/go-gl/glfw3"
 	"github.com/niriel/daggor/glm"
 	"runtime"
+	"time"
 	"unsafe"
 )
 
@@ -208,6 +209,10 @@ type Command int
 const (
 	COMMAND_FORWARD = Command(iota)
 	COMMAND_BACKWARD
+	COMMAND_STRAFE_LEFT
+	COMMAND_STRAFE_RIGHT
+	COMMAND_TURN_LEFT
+	COMMAND_TURN_RIGHT
 )
 
 func Commands(events []GlfwKeyEvent) []Command {
@@ -216,44 +221,105 @@ func Commands(events []GlfwKeyEvent) []Command {
 	}
 	result := make([]Command, 0, 1)
 	for _, event := range events {
-		switch event.key {
-		case glfw.KeyW:
-			if event.action == glfw.Press {
+		if event.action == glfw.Press {
+			switch event.key {
+			case glfw.KeyW:
 				result = append(result, COMMAND_FORWARD)
-			}
-		case glfw.KeyS:
-			if event.action == glfw.Press {
+			case glfw.KeyS:
 				result = append(result, COMMAND_BACKWARD)
+			case glfw.KeyA:
+				result = append(result, COMMAND_STRAFE_LEFT)
+			case glfw.KeyD:
+				result = append(result, COMMAND_STRAFE_RIGHT)
+			case glfw.KeyQ:
+				result = append(result, COMMAND_TURN_LEFT)
+			case glfw.KeyE:
+				result = append(result, COMMAND_TURN_RIGHT)
 			}
 		}
 	}
 	return result
 }
 
-type ProgramState struct {
-	PlayerPos int
+var SIN = [...]int{0, 1, 0, -1}
+var COS = [...]int{1, 0, -1, 0}
+
+type PlayerState struct {
+	X int // Position.
+	Y int // Position.
+	F int // Facing.
 }
 
-func NewPlayerPos(program_state ProgramState, command Command) int {
-	delta := 0
+func (self PlayerState) TurnLeft() PlayerState {
+	self.F = (self.F + 1) % 4
+	return self
+}
+func (self PlayerState) TurnRight() PlayerState {
+	// Here I add 3, because if I subtract 1 I get the stupid
+	// go result: -1 % 4 = -1 (go) instead of -1 % 4 = 3 (python).
+	// See this discussion:
+	// https://code.google.com/p/go/issues/detail?id=448
+	self.F = (self.F + 3) % 4
+	return self
+}
+func (self PlayerState) Forward() PlayerState {
+	self.X += COS[self.F]
+	self.Y += SIN[self.F]
+	return self
+}
+func (self PlayerState) Backward() PlayerState {
+	self.X -= COS[self.F]
+	self.Y -= SIN[self.F]
+	return self
+}
+func (self PlayerState) StrafeLeft() PlayerState {
+	self.X -= SIN[self.F]
+	self.Y += COS[self.F]
+	return self
+}
+func (self PlayerState) StrafeRight() PlayerState {
+	self.X += SIN[self.F]
+	self.Y -= COS[self.F]
+	return self
+}
+func (self PlayerState) ViewMatrix() glm.Matrix4 {
+	R := glm.RotZ(float64(-90 * self.F))
+	T := glm.Vector3{float64(-self.X), float64(-self.Y), 0}.Translation()
+	return R.Mult(T)
+}
+
+type ProgramState struct {
+	Player PlayerState
+}
+
+func NewPlayerPos(player_state PlayerState, command Command) PlayerState {
 	switch command {
+	case COMMAND_TURN_LEFT:
+		return player_state.TurnLeft()
+	case COMMAND_TURN_RIGHT:
+		return player_state.TurnRight()
 	case COMMAND_BACKWARD:
-		delta = -1
+		return player_state.Backward()
 	case COMMAND_FORWARD:
-		delta = 1
+		return player_state.Forward()
+	case COMMAND_STRAFE_LEFT:
+		return player_state.StrafeLeft()
+	case COMMAND_STRAFE_RIGHT:
+		return player_state.StrafeRight()
 	}
-	return program_state.PlayerPos + delta
+	return player_state
 }
 
 func NewProgramState(program_state ProgramState, commands []Command) ProgramState {
 	if len(commands) == 0 {
 		return program_state
 	}
-	new_state := program_state // Copy.
+	player_state := program_state.Player
 	for _, command := range commands {
-		new_state.PlayerPos = NewPlayerPos(new_state, command)
+		player_state = NewPlayerPos(player_state, command)
 	}
-	return new_state
+	program_state.Player = player_state
+	return program_state
 }
 
 func main() {
@@ -285,31 +351,39 @@ func main() {
 	pyramid := PyramidMesh()
 
 	shapes := [...]Drawable{
-		cube, cube, pyramid, cube, pyramid, pyramid, cube,
+		pyramid, cube, cube, cube,
 	}
 	positions := [len(shapes)]glm.Vector3{
-		glm.Vector3{0, 4, 0},
-		glm.Vector3{1, 3, 0},
-		glm.Vector3{-1, 3, 0},
-		glm.Vector3{0, 5, 2},
-		glm.Vector3{-3, 1, 0},
-		glm.Vector3{2, 2, -1},
-		glm.Vector3{7, 3, 0},
+		glm.Vector3{2, 0, 0},
+		glm.Vector3{0, 2, 0},
+		glm.Vector3{-2, 0, 0},
+		glm.Vector3{0, 0, 2},
 	}
 
-	p := glm.PerspectiveProj(80, 640./480., .1, 100).Mult(glm.ZUP)
+	// I do not like the default reference frame of OpenGl.
+	// By default, we look in the direction -z, and y points up.
+	// I want z to point up, and I want to look in the direction +x
+	// by default.  That way, I move on an xy plane where z is the
+	// altitude, instead of having the altitude stuffed between
+	// the two things I use the most.  And my reason for pointing
+	// toward +x is that I use the convention for trigonometry:
+	// an angle of 0 points to the right (east) of the trigonometric
+	// circle.  Bonus point: this matches Blender's reference frame.
+	my_frame := glm.ZUP.Mult(glm.RotZ(90))
+	p := glm.PerspectiveProj(80, 640./480., .1, 100).Mult(my_frame)
 
+	gl.Enable(gl.DEPTH_TEST)
 	gl.Enable(gl.CULL_FACE)
-	//gl.CullFace(gl.BACK)
-	//gl.FrontFace(gl.CCW)
+	gl.CullFace(gl.BACK)
+	gl.FrontFace(gl.CCW)
 
 	var program_state ProgramState
 	for !window.ShouldClose() {
 		keys := glfwKeyEventList.Freeze()
 		commands := Commands(keys)
 		program_state = NewProgramState(program_state, commands)
-		v := glm.Vector3{float64(program_state.PlayerPos), 0, 0}.Translation()
 		fmt.Println(program_state)
+		v := program_state.Player.ViewMatrix()
 		gl.ClearColor(0.0, 0.0, 0.4, 0.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		for i := 0; i < len(shapes); i++ {
@@ -320,6 +394,7 @@ func main() {
 			shape.Draw(&mvp)
 		}
 		window.SwapBuffers()
+		time.Sleep(15 * time.Millisecond)
 		glfw.PollEvents()
 	}
 }
