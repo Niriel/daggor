@@ -194,3 +194,19 @@ just contains the landscape (name chosen to avoid clashing with the keyword
 is analyzed and draw calls are performed.  Visually, it looks like before.  But
 now, I should be able to change the landscape while playing.
 
+To prove it, I added three commands linked to key presses:
+
+* `C` creates a cube,
+* `P` creates a pyramid,
+* `Delete` removes the cube or pyramid, if any.
+
+The edition is limited to the 16x16 grid of the landscape, even though the
+player can venture beyond.
+The tile affected is not the one on which the player stands, but the one in
+front.
+
+Note that with my current 80 degrees FOV and the size of the tiles, I cannot see
+the walls directly on my left and right.  Although it is correct considering the
+geometry, it is poor for the gameplay as you never know if you stand in a
+corridor or an open area.  I must come up with a solution, probably wider tiles.
+

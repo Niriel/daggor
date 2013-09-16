@@ -58,6 +58,8 @@ type Drawable struct {
 	n_elements int
 }
 
+var CUBE, PYRAMID Drawable
+
 func (self *Drawable) Draw(mvp_matrix *[16]float32) {
 	// Bindind the VAO each time is not efficient but
 	// it is correct.
@@ -213,6 +215,9 @@ const (
 	COMMAND_STRAFE_RIGHT
 	COMMAND_TURN_LEFT
 	COMMAND_TURN_RIGHT
+	COMMAND_PLACE_CUBE
+	COMMAND_PLACE_PYRAMID
+	COMMAND_REMOVE_SHAPE
 )
 
 func Commands(events []GlfwKeyEvent) []Command {
@@ -235,6 +240,12 @@ func Commands(events []GlfwKeyEvent) []Command {
 				result = append(result, COMMAND_TURN_LEFT)
 			case glfw.KeyE:
 				result = append(result, COMMAND_TURN_RIGHT)
+			case glfw.KeyC:
+				result = append(result, COMMAND_PLACE_CUBE)
+			case glfw.KeyP:
+				result = append(result, COMMAND_PLACE_PYRAMID)
+			case glfw.KeyDelete:
+				result = append(result, COMMAND_REMOVE_SHAPE)
 			}
 		}
 	}
@@ -320,7 +331,7 @@ type ProgramState struct {
 	Landscape LandscapeState
 }
 
-func NewPlayerPos(player_state PlayerState, command Command) PlayerState {
+func PlayerCommand(player_state PlayerState, command Command) PlayerState {
 	switch command {
 	case COMMAND_TURN_LEFT:
 		return player_state.TurnLeft()
@@ -338,15 +349,38 @@ func NewPlayerPos(player_state PlayerState, command Command) PlayerState {
 	return player_state
 }
 
+func LandscapeCommand(landscape LandscapeState, player PlayerState, command Command) LandscapeState {
+	where := player.Forward()
+	x, y := where.X, where.Y
+	if x >= 0 && x < LANDSCAPE_SIZE && y >= 0 && y < LANDSCAPE_SIZE {
+		switch command {
+		case COMMAND_PLACE_CUBE:
+			landscape = landscape.SetTile(x, y, &CUBE)
+		case COMMAND_PLACE_PYRAMID:
+			landscape = landscape.SetTile(x, y, &PYRAMID)
+		case COMMAND_REMOVE_SHAPE:
+			landscape = landscape.SetTile(x, y, nil)
+		}
+	}
+	return landscape
+}
+
 func NewProgramState(program_state ProgramState, commands []Command) ProgramState {
 	if len(commands) == 0 {
 		return program_state
 	}
-	player_state := program_state.Player
+	player := program_state.Player
+	landscape := program_state.Landscape
 	for _, command := range commands {
-		player_state = NewPlayerPos(player_state, command)
+		switch {
+		case command <= COMMAND_TURN_RIGHT:
+			player = PlayerCommand(player, command)
+		case command <= COMMAND_REMOVE_SHAPE:
+			landscape = LandscapeCommand(landscape, player, command)
+		}
 	}
-	program_state.Player = player_state
+	program_state.Player = player
+	program_state.Landscape = landscape
 	return program_state
 }
 
@@ -377,16 +411,16 @@ func main() {
 
 	var program_state ProgramState
 
-	cube := CubeMesh()
-	pyramid := PyramidMesh()
+	CUBE = CubeMesh() // Global variables for now.
+	PYRAMID = PyramidMesh()
 	landscape := program_state.Landscape
-	landscape = landscape.SetTile(0, 4, &cube)
-	landscape = landscape.SetTile(1, 3, &cube)
-	landscape = landscape.SetTile(0, 3, &pyramid)
-	landscape = landscape.SetTile(0, 5, &cube)
-	landscape = landscape.SetTile(1, 6, &pyramid)
-	landscape = landscape.SetTile(2, 2, &pyramid)
-	landscape = landscape.SetTile(7, 3, &cube)
+	landscape = landscape.SetTile(0, 4, &CUBE)
+	landscape = landscape.SetTile(1, 3, &CUBE)
+	landscape = landscape.SetTile(0, 3, &PYRAMID)
+	landscape = landscape.SetTile(0, 5, &CUBE)
+	landscape = landscape.SetTile(1, 6, &PYRAMID)
+	landscape = landscape.SetTile(2, 2, &PYRAMID)
+	landscape = landscape.SetTile(7, 3, &CUBE)
 	program_state.Landscape = landscape
 
 	// I do not like the default reference frame of OpenGl.
