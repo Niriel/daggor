@@ -2,18 +2,16 @@
 package main
 
 import (
-	"bytes"
 	"encoding/gob"
 	"fmt"
 	"github.com/go-gl/gl"
 	glfw "github.com/go-gl/glfw3"
 	"glm" // Local import, make sure Daggor is in your gopath.
+	"os"
 	"runtime"
 	"time"
 	"unsafe"
 )
-
-var HARDDRIVE bytes.Buffer
 
 func init() {
 	runtime.LockOSThread()
@@ -415,7 +413,7 @@ func NewProgramState(program_state ProgramState, commands []Command) ProgramStat
 			world, err := Load()
 			fmt.Println("Load:", err)
 			if err == nil {
-				program_state.World = world
+				program_state.World = *world
 			}
 		}
 	}
@@ -423,15 +421,23 @@ func NewProgramState(program_state ProgramState, commands []Command) ProgramStat
 }
 
 func Save(world World) error {
-	encoder := gob.NewEncoder(&HARDDRIVE)
+	f, err := os.Create("quicksave.sav")
+	if err != nil {
+		return err
+	}
+	encoder := gob.NewEncoder(f)
 	return encoder.Encode(world)
 }
 
-func Load() (World, error) {
+func Load() (*World, error) {
+	f, err := os.Open("quicksave.sav")
+	if err != nil {
+		return nil, err
+	}
 	var world World
-	decoder := gob.NewDecoder(&HARDDRIVE)
-	err := decoder.Decode(&world)
-	return world, err
+	decoder := gob.NewDecoder(f)
+	err = decoder.Decode(&world)
+	return &world, err
 }
 
 func main() {
