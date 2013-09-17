@@ -2,6 +2,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"github.com/go-gl/gl"
 	glfw "github.com/go-gl/glfw3"
@@ -10,6 +12,8 @@ import (
 	"time"
 	"unsafe"
 )
+
+var HARDDRIVE bytes.Buffer
 
 func init() {
 	runtime.LockOSThread()
@@ -220,6 +224,8 @@ const (
 	COMMAND_PLACE_CUBE
 	COMMAND_PLACE_PYRAMID
 	COMMAND_REMOVE_SHAPE
+	COMMAND_SAVE
+	COMMAND_LOAD
 )
 
 func Commands(events []GlfwKeyEvent) []Command {
@@ -248,6 +254,10 @@ func Commands(events []GlfwKeyEvent) []Command {
 				result = append(result, COMMAND_PLACE_PYRAMID)
 			case glfw.KeyDelete:
 				result = append(result, COMMAND_REMOVE_SHAPE)
+			case glfw.KeyF4:
+				result = append(result, COMMAND_SAVE)
+			case glfw.KeyF5:
+				result = append(result, COMMAND_LOAD)
 			}
 		}
 	}
@@ -304,7 +314,7 @@ func (self Player) ViewMatrix() glm.Matrix4 {
 const LANDSCAPE_SIZE = 16
 
 type Landscape struct {
-	tiles [LANDSCAPE_SIZE * LANDSCAPE_SIZE]int
+	Tiles [LANDSCAPE_SIZE * LANDSCAPE_SIZE]int
 }
 
 func (self *Landscape) Tile(x, y int) int {
@@ -314,7 +324,7 @@ func (self *Landscape) Tile(x, y int) int {
 	if (y < 0) || (y >= LANDSCAPE_SIZE) {
 		panic("Landscape y index out of range.")
 	}
-	return self.tiles[y*LANDSCAPE_SIZE+x]
+	return self.Tiles[y*LANDSCAPE_SIZE+x]
 }
 
 func (self Landscape) SetTile(x, y int, shape_id int) Landscape {
@@ -324,7 +334,7 @@ func (self Landscape) SetTile(x, y int, shape_id int) Landscape {
 	if (y < 0) || (y >= LANDSCAPE_SIZE) {
 		panic("Landscape y index out of range.")
 	}
-	self.tiles[y*LANDSCAPE_SIZE+x] = shape_id
+	self.Tiles[y*LANDSCAPE_SIZE+x] = shape_id
 	return self
 }
 
@@ -339,15 +349,19 @@ func (self Landscape) SetTiles(tiles map[[2]int]int) Landscape {
 		if (y < 0) || (y >= LANDSCAPE_SIZE) {
 			panic("Landscape y index out of range.")
 		}
-		self.tiles[y*LANDSCAPE_SIZE+x] = shape_id
+		self.Tiles[y*LANDSCAPE_SIZE+x] = shape_id
 	}
 	return self
 }
 
-type ProgramState struct {
-	Shapes    [2]Drawable
+type World struct {
 	Player    Player
 	Landscape Landscape
+}
+
+type ProgramState struct {
+	Shapes [2]Drawable
+	World  World
 }
 
 func PlayerCommand(player Player, command Command) Player {
@@ -388,19 +402,36 @@ func NewProgramState(program_state ProgramState, commands []Command) ProgramStat
 	if len(commands) == 0 {
 		return program_state
 	}
-	player := program_state.Player
-	landscape := program_state.Landscape
 	for _, command := range commands {
 		switch {
 		case command <= COMMAND_TURN_RIGHT:
-			player = PlayerCommand(player, command)
+			program_state.World.Player = PlayerCommand(program_state.World.Player, command)
 		case command <= COMMAND_REMOVE_SHAPE:
-			landscape = LandscapeCommand(landscape, player, command)
+			program_state.World.Landscape = LandscapeCommand(program_state.World.Landscape, program_state.World.Player, command)
+		case command == COMMAND_SAVE:
+			err := Save(program_state.World)
+			fmt.Println("Save:", err)
+		case command == COMMAND_LOAD:
+			world, err := Load()
+			fmt.Println("Load:", err)
+			if err == nil {
+				program_state.World = world
+			}
 		}
 	}
-	program_state.Player = player
-	program_state.Landscape = landscape
 	return program_state
+}
+
+func Save(world World) error {
+	encoder := gob.NewEncoder(&HARDDRIVE)
+	return encoder.Encode(world)
+}
+
+func Load() (World, error) {
+	var world World
+	decoder := gob.NewDecoder(&HARDDRIVE)
+	err := decoder.Decode(&world)
+	return world, err
 }
 
 func main() {
@@ -441,7 +472,7 @@ func main() {
 		[2]int{2, 2}: PYRAMID_ID,
 		[2]int{7, 3}: CUBE_ID,
 	}
-	program_state.Landscape = program_state.Landscape.SetTiles(tiles)
+	program_state.World.Landscape = program_state.World.Landscape.SetTiles(tiles)
 
 	// I do not like the default reference frame of OpenGl.
 	// By default, we look in the direction -z, and y points up.
@@ -464,12 +495,12 @@ func main() {
 		keys := glfwKeyEventList.Freeze()
 		commands := Commands(keys)
 		program_state = NewProgramState(program_state, commands)
-		v := program_state.Player.ViewMatrix()
+		v := program_state.World.Player.ViewMatrix()
 		gl.ClearColor(0.0, 0.0, 0.4, 0.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		for x := 0; x < LANDSCAPE_SIZE; x++ {
 			for y := 0; y < LANDSCAPE_SIZE; y++ {
-				shape_id := program_state.Landscape.Tile(x, y)
+				shape_id := program_state.World.Landscape.Tile(x, y)
 				if shape_id != EMPTY_ID {
 					m := glm.Vector3{float64(x), float64(y), 0}.Translation()
 					mvp := p.Mult(v).Mult(m).Gl()
