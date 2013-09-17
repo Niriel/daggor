@@ -307,7 +307,7 @@ type Landscape struct {
 	tiles [LANDSCAPE_SIZE * LANDSCAPE_SIZE]int
 }
 
-func (self Landscape) Tile(x, y int) int {
+func (self *Landscape) Tile(x, y int) int {
 	if (x < 0) || (x >= LANDSCAPE_SIZE) {
 		panic("Landscape x index out of range.")
 	}
