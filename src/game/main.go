@@ -328,6 +328,22 @@ func (self Landscape) SetTile(x, y int, shape_id int) Landscape {
 	return self
 }
 
+func (self Landscape) SetTiles(tiles map[[2]int]int) Landscape {
+	// Allows to set a bunch of tiles at once, without having
+	// to create a bunch of intermediary landscapes.
+	for coords, shape_id := range tiles {
+		x, y := coords[0], coords[1]
+		if (x < 0) || (x >= LANDSCAPE_SIZE) {
+			panic("Landscape x index out of range.")
+		}
+		if (y < 0) || (y >= LANDSCAPE_SIZE) {
+			panic("Landscape y index out of range.")
+		}
+		self.tiles[y*LANDSCAPE_SIZE+x] = shape_id
+	}
+	return self
+}
+
 type ProgramState struct {
 	Shapes    [2]Drawable
 	Player    Player
@@ -416,16 +432,16 @@ func main() {
 
 	program_state.Shapes[CUBE_ID-1] = CubeMesh()
 	program_state.Shapes[PYRAMID_ID-1] = PyramidMesh()
-	landscape := program_state.Landscape
-	landscape = landscape.SetTile(0, 4, CUBE_ID)
-	landscape = landscape.SetTile(1, 3, CUBE_ID)
-	landscape = landscape.SetTile(0, 3, PYRAMID_ID)
-	landscape = landscape.SetTile(0, 5, CUBE_ID)
-	landscape = landscape.SetTile(1, 6, PYRAMID_ID)
-	landscape = landscape.SetTile(2, 2, PYRAMID_ID)
-	landscape = landscape.SetTile(7, 3, CUBE_ID)
-	fmt.Println(landscape)
-	program_state.Landscape = landscape
+	tiles := map[[2]int]int{
+		[2]int{0, 4}: CUBE_ID,
+		[2]int{1, 3}: CUBE_ID,
+		[2]int{0, 3}: PYRAMID_ID,
+		[2]int{0, 5}: CUBE_ID,
+		[2]int{1, 6}: PYRAMID_ID,
+		[2]int{2, 2}: PYRAMID_ID,
+		[2]int{7, 3}: CUBE_ID,
+	}
+	program_state.Landscape = program_state.Landscape.SetTiles(tiles)
 
 	// I do not like the default reference frame of OpenGl.
 	// By default, we look in the direction -z, and y points up.
