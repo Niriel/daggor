@@ -58,8 +58,6 @@ type Drawable struct {
 	n_elements int
 }
 
-var Shapes [2]Drawable
-
 const EMPTY_ID = 0
 const CUBE_ID = 1
 const PYRAMID_ID = 2
@@ -331,6 +329,7 @@ func (self Landscape) SetTile(x, y int, shape_id int) Landscape {
 }
 
 type ProgramState struct {
+	Shapes    [2]Drawable
 	Player    Player
 	Landscape Landscape
 }
@@ -415,8 +414,8 @@ func main() {
 
 	var program_state ProgramState
 
-	Shapes[CUBE_ID-1] = CubeMesh()
-	Shapes[PYRAMID_ID-1] = PyramidMesh()
+	program_state.Shapes[CUBE_ID-1] = CubeMesh()
+	program_state.Shapes[PYRAMID_ID-1] = PyramidMesh()
 	landscape := program_state.Landscape
 	landscape = landscape.SetTile(0, 4, CUBE_ID)
 	landscape = landscape.SetTile(1, 3, CUBE_ID)
@@ -458,7 +457,7 @@ func main() {
 				if shape_id != EMPTY_ID {
 					m := glm.Vector3{float64(x), float64(y), 0}.Translation()
 					mvp := p.Mult(v).Mult(m).Gl()
-					Shapes[shape_id-1].Draw(&mvp)
+					program_state.Shapes[shape_id-1].Draw(&mvp)
 				}
 			}
 		}
