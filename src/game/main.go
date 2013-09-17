@@ -58,7 +58,11 @@ type Drawable struct {
 	n_elements int
 }
 
-var CUBE, PYRAMID Drawable
+var Shapes [2]Drawable
+
+const EMPTY_ID = 0
+const CUBE_ID = 1
+const PYRAMID_ID = 2
 
 func (self *Drawable) Draw(mvp_matrix *[16]float32) {
 	// Bindind the VAO each time is not efficient but
@@ -302,10 +306,10 @@ func (self PlayerState) ViewMatrix() glm.Matrix4 {
 const LANDSCAPE_SIZE = 16
 
 type LandscapeState struct {
-	tiles [LANDSCAPE_SIZE * LANDSCAPE_SIZE]*Drawable
+	tiles [LANDSCAPE_SIZE * LANDSCAPE_SIZE]int
 }
 
-func (self LandscapeState) Tile(x, y int) *Drawable {
+func (self LandscapeState) Tile(x, y int) int {
 	if (x < 0) || (x >= LANDSCAPE_SIZE) {
 		panic("Landscape x index out of range.")
 	}
@@ -315,14 +319,14 @@ func (self LandscapeState) Tile(x, y int) *Drawable {
 	return self.tiles[y*LANDSCAPE_SIZE+x]
 }
 
-func (self LandscapeState) SetTile(x, y int, drawable *Drawable) LandscapeState {
+func (self LandscapeState) SetTile(x, y int, shape_id int) LandscapeState {
 	if (x < 0) || (x >= LANDSCAPE_SIZE) {
 		panic("Landscape x index out of range.")
 	}
 	if (y < 0) || (y >= LANDSCAPE_SIZE) {
 		panic("Landscape y index out of range.")
 	}
-	self.tiles[y*LANDSCAPE_SIZE+x] = drawable
+	self.tiles[y*LANDSCAPE_SIZE+x] = shape_id
 	return self
 }
 
@@ -355,11 +359,11 @@ func LandscapeCommand(landscape LandscapeState, player PlayerState, command Comm
 	if x >= 0 && x < LANDSCAPE_SIZE && y >= 0 && y < LANDSCAPE_SIZE {
 		switch command {
 		case COMMAND_PLACE_CUBE:
-			landscape = landscape.SetTile(x, y, &CUBE)
+			landscape = landscape.SetTile(x, y, CUBE_ID)
 		case COMMAND_PLACE_PYRAMID:
-			landscape = landscape.SetTile(x, y, &PYRAMID)
+			landscape = landscape.SetTile(x, y, PYRAMID_ID)
 		case COMMAND_REMOVE_SHAPE:
-			landscape = landscape.SetTile(x, y, nil)
+			landscape = landscape.SetTile(x, y, EMPTY_ID)
 		}
 	}
 	return landscape
@@ -411,16 +415,17 @@ func main() {
 
 	var program_state ProgramState
 
-	CUBE = CubeMesh() // Global variables for now.
-	PYRAMID = PyramidMesh()
+	Shapes[CUBE_ID-1] = CubeMesh()
+	Shapes[PYRAMID_ID-1] = PyramidMesh()
 	landscape := program_state.Landscape
-	landscape = landscape.SetTile(0, 4, &CUBE)
-	landscape = landscape.SetTile(1, 3, &CUBE)
-	landscape = landscape.SetTile(0, 3, &PYRAMID)
-	landscape = landscape.SetTile(0, 5, &CUBE)
-	landscape = landscape.SetTile(1, 6, &PYRAMID)
-	landscape = landscape.SetTile(2, 2, &PYRAMID)
-	landscape = landscape.SetTile(7, 3, &CUBE)
+	landscape = landscape.SetTile(0, 4, CUBE_ID)
+	landscape = landscape.SetTile(1, 3, CUBE_ID)
+	landscape = landscape.SetTile(0, 3, PYRAMID_ID)
+	landscape = landscape.SetTile(0, 5, CUBE_ID)
+	landscape = landscape.SetTile(1, 6, PYRAMID_ID)
+	landscape = landscape.SetTile(2, 2, PYRAMID_ID)
+	landscape = landscape.SetTile(7, 3, CUBE_ID)
+	fmt.Println(landscape)
 	program_state.Landscape = landscape
 
 	// I do not like the default reference frame of OpenGl.
@@ -449,11 +454,11 @@ func main() {
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		for x := 0; x < LANDSCAPE_SIZE; x++ {
 			for y := 0; y < LANDSCAPE_SIZE; y++ {
-				shape := program_state.Landscape.Tile(x, y)
-				if shape != nil {
+				shape_id := program_state.Landscape.Tile(x, y)
+				if shape_id != EMPTY_ID {
 					m := glm.Vector3{float64(x), float64(y), 0}.Translation()
 					mvp := p.Mult(v).Mult(m).Gl()
-					shape.Draw(&mvp)
+					Shapes[shape_id-1].Draw(&mvp)
 				}
 			}
 		}

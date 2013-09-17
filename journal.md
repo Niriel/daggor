@@ -210,3 +210,22 @@ the walls directly on my left and right.  Although it is correct considering the
 geometry, it is poor for the gameplay as you never know if you stand in a
 corridor or an open area.  I must come up with a solution, probably wider tiles.
 
+Save and load game.
+===================
+My immutable structures should make it easy.  Let's get it over with as soon as
+possible.  As always with serializing stuff, the pointers are a mess.  Some state
+is also contained inside OpenGL, and this one should NOT be saved to disk.
+
+So, the same data may be expressed in two ways: the way that is stored in the
+file, which contains no pointer, and maybe the version in memory that has
+pointers.  Well, using pointers is a type of optimization, I can do without.
+So I should work at removing all pointers from the game state.
+
+This is still going to be a problem with slices, as these contain pointer
+internally.  Therefore I should not dump slices to disk directly.  Maps probably
+have the same problem.
+
+Something without pointers...  Isn't that a relational database?
+
+Let us remove pointers from the landscape.
+
