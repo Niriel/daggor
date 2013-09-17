@@ -259,17 +259,17 @@ func Commands(events []GlfwKeyEvent) []Command {
 var SIN = [...]int{0, 1, 0, -1}
 var COS = [...]int{1, 0, -1, 0}
 
-type PlayerState struct {
+type Player struct {
 	X int // Position.
 	Y int // Position.
 	F int // Facing.
 }
 
-func (self PlayerState) TurnLeft() PlayerState {
+func (self Player) TurnLeft() Player {
 	self.F = (self.F + 1) % 4
 	return self
 }
-func (self PlayerState) TurnRight() PlayerState {
+func (self Player) TurnRight() Player {
 	// Here I add 3, because if I subtract 1 I get the stupid
 	// go result: -1 % 4 = -1 (go) instead of -1 % 4 = 3 (python).
 	// See this discussion:
@@ -277,27 +277,27 @@ func (self PlayerState) TurnRight() PlayerState {
 	self.F = (self.F + 3) % 4
 	return self
 }
-func (self PlayerState) Forward() PlayerState {
+func (self Player) Forward() Player {
 	self.X += COS[self.F]
 	self.Y += SIN[self.F]
 	return self
 }
-func (self PlayerState) Backward() PlayerState {
+func (self Player) Backward() Player {
 	self.X -= COS[self.F]
 	self.Y -= SIN[self.F]
 	return self
 }
-func (self PlayerState) StrafeLeft() PlayerState {
+func (self Player) StrafeLeft() Player {
 	self.X -= SIN[self.F]
 	self.Y += COS[self.F]
 	return self
 }
-func (self PlayerState) StrafeRight() PlayerState {
+func (self Player) StrafeRight() Player {
 	self.X += SIN[self.F]
 	self.Y -= COS[self.F]
 	return self
 }
-func (self PlayerState) ViewMatrix() glm.Matrix4 {
+func (self Player) ViewMatrix() glm.Matrix4 {
 	R := glm.RotZ(float64(-90 * self.F))
 	T := glm.Vector3{float64(-self.X), float64(-self.Y), 0}.Translation()
 	return R.Mult(T)
@@ -305,11 +305,11 @@ func (self PlayerState) ViewMatrix() glm.Matrix4 {
 
 const LANDSCAPE_SIZE = 16
 
-type LandscapeState struct {
+type Landscape struct {
 	tiles [LANDSCAPE_SIZE * LANDSCAPE_SIZE]int
 }
 
-func (self LandscapeState) Tile(x, y int) int {
+func (self Landscape) Tile(x, y int) int {
 	if (x < 0) || (x >= LANDSCAPE_SIZE) {
 		panic("Landscape x index out of range.")
 	}
@@ -319,7 +319,7 @@ func (self LandscapeState) Tile(x, y int) int {
 	return self.tiles[y*LANDSCAPE_SIZE+x]
 }
 
-func (self LandscapeState) SetTile(x, y int, shape_id int) LandscapeState {
+func (self Landscape) SetTile(x, y int, shape_id int) Landscape {
 	if (x < 0) || (x >= LANDSCAPE_SIZE) {
 		panic("Landscape x index out of range.")
 	}
@@ -331,29 +331,29 @@ func (self LandscapeState) SetTile(x, y int, shape_id int) LandscapeState {
 }
 
 type ProgramState struct {
-	Player    PlayerState
-	Landscape LandscapeState
+	Player    Player
+	Landscape Landscape
 }
 
-func PlayerCommand(player_state PlayerState, command Command) PlayerState {
+func PlayerCommand(player Player, command Command) Player {
 	switch command {
 	case COMMAND_TURN_LEFT:
-		return player_state.TurnLeft()
+		return player.TurnLeft()
 	case COMMAND_TURN_RIGHT:
-		return player_state.TurnRight()
+		return player.TurnRight()
 	case COMMAND_BACKWARD:
-		return player_state.Backward()
+		return player.Backward()
 	case COMMAND_FORWARD:
-		return player_state.Forward()
+		return player.Forward()
 	case COMMAND_STRAFE_LEFT:
-		return player_state.StrafeLeft()
+		return player.StrafeLeft()
 	case COMMAND_STRAFE_RIGHT:
-		return player_state.StrafeRight()
+		return player.StrafeRight()
 	}
-	return player_state
+	return player
 }
 
-func LandscapeCommand(landscape LandscapeState, player PlayerState, command Command) LandscapeState {
+func LandscapeCommand(landscape Landscape, player Player, command Command) Landscape {
 	where := player.Forward()
 	x, y := where.X, where.Y
 	if x >= 0 && x < LANDSCAPE_SIZE && y >= 0 && y < LANDSCAPE_SIZE {
