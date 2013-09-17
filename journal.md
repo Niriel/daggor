@@ -229,3 +229,15 @@ Something without pointers...  Isn't that a relational database?
 
 Let us remove pointers from the landscape.
 
+I replaced pointers by indices into arrays.  It was easy with the very simple
+world we have now.  Things may get tricker once we start add/remove creatures
+and items, as some arrays will start having holes.  It's like removing rows
+from databases.  We'll see in good time.
+
+So now, we can save (press F4) and load (press F5).  The `<nil>` in the console
+means there was no error.  Things are likely to explode if you load an old saved
+world, and I will not protect myself against that for now.
+
+Also, note that the way things work now, the entire world is held in memory.
+This will be bad once we get a big world.
+
