@@ -71,7 +71,7 @@ func (self *Drawable) Draw(mvp_matrix *[16]float32) {
 	gl.DrawElements(gl.TRIANGLE_STRIP, self.n_elements, gl.UNSIGNED_BYTE, nil)
 }
 
-func CubeMesh() Drawable {
+func Cube() Drawable {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
 	vertices := [...]gl.GLfloat{
@@ -143,7 +143,7 @@ func CubeMesh() Drawable {
 	return Drawable{vao, mvp, program, len(indices)}
 }
 
-func PyramidMesh() Drawable {
+func Pyramid() Drawable {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
 	vertices := [...]gl.GLfloat{
@@ -430,8 +430,8 @@ func main() {
 
 	var program_state ProgramState
 
-	program_state.Shapes[CUBE_ID-1] = CubeMesh()
-	program_state.Shapes[PYRAMID_ID-1] = PyramidMesh()
+	program_state.Shapes[CUBE_ID-1] = Cube()
+	program_state.Shapes[PYRAMID_ID-1] = Pyramid()
 	tiles := map[[2]int]int{
 		[2]int{0, 4}: CUBE_ID,
 		[2]int{1, 3}: CUBE_ID,
