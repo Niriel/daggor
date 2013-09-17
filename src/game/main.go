@@ -490,7 +490,7 @@ func main() {
 	// an angle of 0 points to the right (east) of the trigonometric
 	// circle.  Bonus point: this matches Blender's reference frame.
 	my_frame := glm.ZUP.Mult(glm.RotZ(90))
-	p := glm.PerspectiveProj(80, 640./480., .1, 100).Mult(my_frame)
+	p := glm.PerspectiveProj(110, 640./480., .1, 100).Mult(my_frame)
 
 	gl.Enable(gl.DEPTH_TEST)
 	gl.Enable(gl.CULL_FACE)
