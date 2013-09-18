@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"time"
 	"unsafe"
+	"world"
 )
 
 func init() {
@@ -60,9 +61,8 @@ type Drawable struct {
 	n_elements int
 }
 
-const EMPTY_ID = 0
-const CUBE_ID = 1
-const PYRAMID_ID = 2
+const CUBE_ID = 0
+const PYRAMID_ID = 1
 
 func (self *Drawable) Draw(mvp_matrix *[16]float32) {
 	// Bindind the VAO each time is not efficient but
@@ -309,52 +309,9 @@ func (self Player) ViewMatrix() glm.Matrix4 {
 	return R.Mult(T)
 }
 
-const LANDSCAPE_SIZE = 16
-
-type Landscape struct {
-	Tiles [LANDSCAPE_SIZE * LANDSCAPE_SIZE]int
-}
-
-func (self *Landscape) Tile(x, y int) int {
-	if (x < 0) || (x >= LANDSCAPE_SIZE) {
-		panic("Landscape x index out of range.")
-	}
-	if (y < 0) || (y >= LANDSCAPE_SIZE) {
-		panic("Landscape y index out of range.")
-	}
-	return self.Tiles[y*LANDSCAPE_SIZE+x]
-}
-
-func (self Landscape) SetTile(x, y int, shape_id int) Landscape {
-	if (x < 0) || (x >= LANDSCAPE_SIZE) {
-		panic("Landscape x index out of range.")
-	}
-	if (y < 0) || (y >= LANDSCAPE_SIZE) {
-		panic("Landscape y index out of range.")
-	}
-	self.Tiles[y*LANDSCAPE_SIZE+x] = shape_id
-	return self
-}
-
-func (self Landscape) SetTiles(tiles map[[2]int]int) Landscape {
-	// Allows to set a bunch of tiles at once, without having
-	// to create a bunch of intermediary landscapes.
-	for coords, shape_id := range tiles {
-		x, y := coords[0], coords[1]
-		if (x < 0) || (x >= LANDSCAPE_SIZE) {
-			panic("Landscape x index out of range.")
-		}
-		if (y < 0) || (y >= LANDSCAPE_SIZE) {
-			panic("Landscape y index out of range.")
-		}
-		self.Tiles[y*LANDSCAPE_SIZE+x] = shape_id
-	}
-	return self
-}
-
 type World struct {
-	Player    Player
-	Landscape Landscape
+	Player Player
+	Level  world.Level
 }
 
 type ProgramState struct {
@@ -380,20 +337,18 @@ func PlayerCommand(player Player, command Command) Player {
 	return player
 }
 
-func LandscapeCommand(landscape Landscape, player Player, command Command) Landscape {
+func LevelCommand(level world.Level, player Player, command Command) world.Level {
 	where := player.Forward()
-	x, y := where.X, where.Y
-	if x >= 0 && x < LANDSCAPE_SIZE && y >= 0 && y < LANDSCAPE_SIZE {
-		switch command {
-		case COMMAND_PLACE_CUBE:
-			landscape = landscape.SetTile(x, y, CUBE_ID)
-		case COMMAND_PLACE_PYRAMID:
-			landscape = landscape.SetTile(x, y, PYRAMID_ID)
-		case COMMAND_REMOVE_SHAPE:
-			landscape = landscape.SetTile(x, y, EMPTY_ID)
-		}
+	x, y := world.Coord(where.X), world.Coord(where.Y)
+	switch command {
+	case COMMAND_PLACE_CUBE:
+		level.Floors = level.Floors.Set(x, y, CUBE_ID)
+	case COMMAND_PLACE_PYRAMID:
+		level.Floors = level.Floors.Set(x, y, PYRAMID_ID)
+	case COMMAND_REMOVE_SHAPE:
+		level.Floors = level.Floors.Delete(x, y)
 	}
-	return landscape
+	return level
 }
 
 func NewProgramState(program_state ProgramState, commands []Command) ProgramState {
@@ -405,7 +360,7 @@ func NewProgramState(program_state ProgramState, commands []Command) ProgramStat
 		case command <= COMMAND_TURN_RIGHT:
 			program_state.World.Player = PlayerCommand(program_state.World.Player, command)
 		case command <= COMMAND_REMOVE_SHAPE:
-			program_state.World.Landscape = LandscapeCommand(program_state.World.Landscape, program_state.World.Player, command)
+			program_state.World.Level = LevelCommand(program_state.World.Level, program_state.World.Player, command)
 		case command == COMMAND_SAVE:
 			err := Save(program_state.World)
 			fmt.Println("Save:", err)
@@ -467,8 +422,8 @@ func main() {
 
 	var program_state ProgramState
 
-	program_state.Shapes[CUBE_ID-1] = Cube()
-	program_state.Shapes[PYRAMID_ID-1] = Pyramid()
+	program_state.Shapes[CUBE_ID] = Cube()
+	program_state.Shapes[PYRAMID_ID] = Pyramid()
 	tiles := map[[2]int]int{
 		[2]int{0, 4}: CUBE_ID,
 		[2]int{1, 3}: CUBE_ID,
@@ -478,7 +433,10 @@ func main() {
 		[2]int{2, 2}: PYRAMID_ID,
 		[2]int{7, 3}: CUBE_ID,
 	}
-	program_state.World.Landscape = program_state.World.Landscape.SetTiles(tiles)
+	for coords, floor := range tiles {
+		x, y := world.Coord(coords[0]), world.Coord(coords[1])
+		program_state.World.Level.Floors = program_state.World.Level.Floors.Set(x, y, world.Building(floor))
+	}
 
 	// I do not like the default reference frame of OpenGl.
 	// By default, we look in the direction -z, and y points up.
@@ -504,15 +462,10 @@ func main() {
 		v := program_state.World.Player.ViewMatrix()
 		gl.ClearColor(0.0, 0.0, 0.4, 0.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-		for x := 0; x < LANDSCAPE_SIZE; x++ {
-			for y := 0; y < LANDSCAPE_SIZE; y++ {
-				shape_id := program_state.World.Landscape.Tile(x, y)
-				if shape_id != EMPTY_ID {
-					m := glm.Vector3{float64(x), float64(y), 0}.Translation()
-					mvp := p.Mult(v).Mult(m).Gl()
-					program_state.Shapes[shape_id-1].Draw(&mvp)
-				}
-			}
+		for coords, floor := range program_state.World.Level.Floors {
+			m := glm.Vector3{float64(coords.X), float64(coords.Y), 0}.Translation()
+			mvp := p.Mult(v).Mult(m).Gl()
+			program_state.Shapes[floor].Draw(&mvp)
 		}
 		window.SwapBuffers()
 		time.Sleep(15 * time.Millisecond)

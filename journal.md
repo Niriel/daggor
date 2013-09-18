@@ -241,3 +241,18 @@ world, and I will not protect myself against that for now.
 Also, note that the way things work now, the entire world is held in memory.
 This will be bad once we get a big world.
 
+A real world.
+=============
+Cubes and pyramid suck.  I want to see floors, ceilings and walls.  Not even
+counting creatures, chests and other decorations.  The world will be a
+collection of such things, attached to positions.  I could create a Tile
+structure that contains a ceiling, a floor and four walls, but I don't think it
+would actually be useful for anything.  Actually, I think that having a list of
+ceilings, a list of walls, etc., will improve performance.  Not that I should
+think about that now, but still: I'd rather copy a list of ceiling in case of
+modification (immutable, remember?) than copy a list of tiles.
+
+I start with keeping cubes and pyramids but I make them technically floor
+elements.  This is because I do not wish to change looks and logic at the same
+time.
+
