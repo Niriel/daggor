@@ -7,12 +7,15 @@ import (
 	"github.com/go-gl/gl"
 	glfw "github.com/go-gl/glfw3"
 	"glm" // Local import, make sure Daggor is in your gopath.
+	"glw"
 	"os"
 	"runtime"
 	"time"
 	"unsafe"
 	"world"
 )
+
+var Shaders glw.Shaders
 
 func init() {
 	runtime.LockOSThread()
@@ -101,31 +104,16 @@ func Cube() Drawable {
 	ebuf := gl.GenBuffer()
 	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
-	vsh_code := `
-	#version 330 core
-	in vec3 vpos;
-	out vec3 fpos;
-	uniform mat4 mvp;
-	void main(){
-		gl_Position = mvp * vec4(vpos, 1.0);
-		fpos = gl_Position.xyz;
-	}
-	`
-	fsh_code := `
-	#version 330 core
-    in vec3 fpos;
-    out vec3 color;
 
-    void main(){
-        color = vec3(1.0 - fpos.z *.1, 0, 0);
-    }
-	`
-	vsh := gl.CreateShader(gl.VERTEX_SHADER)
-	vsh.Source(vsh_code)
-	vsh.Compile()
-	fsh := gl.CreateShader(gl.FRAGMENT_SHADER)
-	fsh.Source(fsh_code)
-	fsh.Compile()
+	vsh, err := Shaders.Serve(glw.VSH_POS3)
+	if err != nil {
+		panic(err)
+	}
+	fsh, err := Shaders.Serve(glw.FSH_ZRED)
+	if err != nil {
+		panic(err)
+	}
+
 	program := gl.CreateProgram()
 	program.AttachShader(vsh)
 	program.AttachShader(fsh)
@@ -166,31 +154,16 @@ func Pyramid() Drawable {
 	ebuf := gl.GenBuffer()
 	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
-	vsh_code := `
-	#version 330 core
-	in vec3 vpos;
-	out vec3 fpos;
-	uniform mat4 mvp;
-	void main(){
-		gl_Position = mvp * vec4(vpos, 1.0);
-		fpos = gl_Position.xyz;
-	}
-	`
-	fsh_code := `
-	#version 330 core
-	in vec3 fpos;
-    out vec3 color;
 
-    void main(){
-        color = vec3(0,1.0 - fpos.z *.1, 0);
-    }
-	`
-	vsh := gl.CreateShader(gl.VERTEX_SHADER)
-	vsh.Source(vsh_code)
-	vsh.Compile()
-	fsh := gl.CreateShader(gl.FRAGMENT_SHADER)
-	fsh.Source(fsh_code)
-	fsh.Compile()
+	vsh, err := Shaders.Serve(glw.VSH_POS3)
+	if err != nil {
+		panic(err)
+	}
+	fsh, err := Shaders.Serve(glw.FSH_ZGREEN)
+	if err != nil {
+		panic(err)
+	}
+
 	program := gl.CreateProgram()
 	program.AttachShader(vsh)
 	program.AttachShader(fsh)
@@ -418,9 +391,16 @@ func main() {
 
 	window.MakeContextCurrent()
 	ec := gl.Init()
-	fmt.Println("OpenGL error code", ec)
+	if ec != 0 {
+		panic(fmt.Sprintf("OpenGL initialization failed with code %v.", ec))
+	}
+	// For some reason, here, the OpenGL error flag for me contains "Invalid enum".
+	// This is weird since I have not done anything yet.  I imagine that something
+	// goes wrong in gl.Init.  Reading the error flag clears it, so I do it.
+	gl.GetError()
 
 	var program_state ProgramState
+	Shaders = make(glw.Shaders)
 
 	program_state.Shapes[CUBE_ID] = Cube()
 	program_state.Shapes[PYRAMID_ID] = Pyramid()
@@ -454,7 +434,6 @@ func main() {
 	gl.Enable(gl.CULL_FACE)
 	gl.CullFace(gl.BACK)
 	gl.FrontFace(gl.CCW)
-
 	for !window.ShouldClose() {
 		keys := glfwKeyEventList.Freeze()
 		commands := Commands(keys)
