@@ -64,9 +64,11 @@ type Drawable struct {
 	n_elements int
 }
 
-const CUBE_ID = 0
-const PYRAMID_ID = 1
-const FLOOR_ID = 2
+const (
+	CUBE_ID = iota
+	PYRAMID_ID
+	FLOOR_ID
+)
 
 func (self *Drawable) Draw(mvp_matrix *[16]float32) {
 	// Bindind the VAO each time is not efficient but
@@ -373,11 +375,11 @@ func LevelCommand(level world.Level, player Player, command Command) world.Level
 	x, y := world.Coord(where.X), world.Coord(where.Y)
 	switch command {
 	case COMMAND_PLACE_CUBE:
-		level.Floors = level.Floors.Set(x, y, CUBE_ID)
+		level.Floors = level.Floors.Set(x, y, world.MakeBaseBuilding(CUBE_ID))
 	case COMMAND_PLACE_PYRAMID:
-		level.Floors = level.Floors.Set(x, y, PYRAMID_ID)
+		level.Floors = level.Floors.Set(x, y, world.MakeBaseBuilding(PYRAMID_ID))
 	case COMMAND_PLACE_FLOOR:
-		level.Floors = level.Floors.Set(x, y, FLOOR_ID)
+		level.Floors = level.Floors.Set(x, y, world.MakeOrientedBuilding(FLOOR_ID, 1))
 	case COMMAND_REMOVE_SHAPE:
 		level.Floors = level.Floors.Delete(x, y)
 	}
@@ -429,6 +431,8 @@ func Load() (*World, error) {
 }
 
 func main() {
+	gob.Register(world.MakeBaseBuilding(0))
+	gob.Register(world.MakeOrientedBuilding(0, 0))
 	glfw.SetErrorCallback(errorCallback)
 
 	if !glfw.Init() {
@@ -465,7 +469,7 @@ func main() {
 	program_state.Shapes[CUBE_ID] = Cube()
 	program_state.Shapes[PYRAMID_ID] = Pyramid()
 	program_state.Shapes[FLOOR_ID] = Floor()
-	tiles := map[[2]int]int{
+	tiles := map[[2]int]world.ModelId{
 		[2]int{0, 4}: CUBE_ID,
 		[2]int{1, 3}: CUBE_ID,
 		[2]int{0, 3}: PYRAMID_ID,
@@ -476,7 +480,7 @@ func main() {
 	}
 	for coords, floor := range tiles {
 		x, y := world.Coord(coords[0]), world.Coord(coords[1])
-		program_state.World.Level.Floors = program_state.World.Level.Floors.Set(x, y, world.Building(floor))
+		program_state.World.Level.Floors = program_state.World.Level.Floors.Set(x, y, world.MakeBaseBuilding(floor))
 	}
 
 	// I do not like the default reference frame of OpenGl.
@@ -503,9 +507,19 @@ func main() {
 		gl.ClearColor(0.0, 0.0, 0.4, 0.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		for coords, floor := range program_state.World.Level.Floors {
+			// The default model matrix only needs a translation.
 			m := glm.Vector3{float64(coords.X), float64(coords.Y), 0}.Translation()
+			switch floor.(type) {
+			case world.OrientedBuilding:
+				{
+					// But Oriented buildig have a rotation as well.
+					facing := floor.(world.OrientedBuilding).Facing
+					R := glm.RotZ(float64(90 * facing))
+					m = m.Mult(R)
+				}
+			}
 			mvp := p.Mult(v).Mult(m).Gl()
-			program_state.Shapes[floor].Draw(&mvp)
+			program_state.Shapes[floor.Model()].Draw(&mvp)
 		}
 		window.SwapBuffers()
 		time.Sleep(15 * time.Millisecond)

@@ -7,7 +7,35 @@ type Coords struct {
 	X, Y Coord
 }
 
-type Building uint16
+type ModelId uint16
+
+type Building interface {
+	Model() ModelId
+}
+
+type BaseBuilding struct {
+	Model_ ModelId
+}
+
+type OrientedBuilding struct {
+	BaseBuilding
+	Facing int
+}
+
+func MakeBaseBuilding(model ModelId) BaseBuilding {
+	return BaseBuilding{Model_: model}
+}
+
+func (self BaseBuilding) Model() ModelId {
+	return self.Model_
+}
+
+func MakeOrientedBuilding(model ModelId, facing int) OrientedBuilding {
+	var result OrientedBuilding
+	result.Model_ = model
+	result.Facing = facing
+	return result
+}
 
 type Buildings map[Coords]Building
 
