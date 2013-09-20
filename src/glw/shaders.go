@@ -26,41 +26,72 @@ const (
 	FSH_VCOL
 )
 
+// Programs are uniquely identified by their shaders.  I need to be able to sort
+// shader references in order to create program references.  Here I implement the
+// interface required by the `sort` package.
+type ShaderRefs []ShaderRef
+
+func (self ShaderRefs) Len() int {
+	return len(self)
+}
+func (self ShaderRefs) Swap(i, j int) {
+	self[i], self[j] = self[j], self[i]
+}
+func (self ShaderRefs) Less(i, j int) bool {
+	return self[i] < self[j]
+}
+
 // This keeps track of the shaders that are in OpenGL.
 // Each shader is known by the application by a unique identifier called
 // "Shader reference", of type ShaderRef.
 type Shaders map[ShaderRef]gl.Shader
+
+func MakeShaders() Shaders {
+	return make(Shaders)
+}
 
 func (shaders Shaders) Serve(ref ShaderRef) (gl.Shader, error) {
 	shader, ok := shaders[ref]
 	if ok {
 		return shader, nil
 	}
-	// Transparently cache the shader.
-	// Also cache shaders that failed the compilation step.
+
 	shader_seed, ok := SHADER_SOURCES[ref]
 	if !ok {
 		return 0, fmt.Errorf("Shader Reference '%#v' not found.", ref)
 	}
+
 	shader = gl.CreateShader(gl.GLenum(shader_seed.Type))
-	if shader == 0 {
-		return 0, fmt.Errorf("CreateShader failed with [%v].", ERROR_NAMES[gl.GetError()])
+	if err := CheckGlError(); err != nil {
+		if shader == 0 {
+			err.Description = "CreateShader failed."
+		} else {
+			err.Description = "CreateShader succeeded but OpenGL reports an error."
+		}
+		return shader, err
+	} else {
+		if shader == 0 {
+			return 0, fmt.Errorf("CreateShader failed but OpenGL reports no error.")
+		}
 	}
+
 	shader.Source(shader_seed.Source)
-	if glec := gl.GetError(); glec != gl.NO_ERROR {
-		return 0, fmt.Errorf("Shader.Source failed with [%v].", ERROR_NAMES[glec])
+	if err := CheckGlError(); err != nil {
+		shader.Delete()
+		gl.GetError() // Delete may also raise an error, ignore.
+		err.Description = "Shader.Source failed."
+		return 0, err
 	}
+
 	shader.Compile()
-	infolog := shader.GetInfoLog()
-	if glec := gl.GetError(); glec != gl.NO_ERROR {
-		// We do not want to try to compile the same shader over and
-		// over again, so once it failed, we put it in the map.  A value
-		// of 0 corresponds to an invalid shader in OpenGl.  So next time,
-		// Shaders.Serve will return `0, nil`, and because it is 0 we know
-		// that this shader is broken.
-		shaders[ref] = 0
-		return 0, fmt.Errorf("Shader.Compile failed with [%v].\nInfolog:\n%v", ERROR_NAMES[glec], infolog)
+	if err := CheckGlError(); err != nil {
+		infolog := shader.GetInfoLog()
+		shader.Delete()
+		gl.GetError() // GetInfoLog and delete may raise an error.
+		err.Description = fmt.Sprintf("Shader.Compile failed. Log: %v", infolog)
+		return 0, err
 	}
+
 	shaders[ref] = shader
 	return shader, nil
 }

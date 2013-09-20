@@ -15,7 +15,7 @@ import (
 	"world"
 )
 
-var Shaders glw.Shaders
+var Programs glw.Programs
 
 func init() {
 	runtime.LockOSThread()
@@ -73,6 +73,23 @@ func (self *Drawable) Draw(mvp_matrix *[16]float32) {
 	self.vao.Bind()
 	self.program.Use()
 	self.mvp.UniformMatrix4f(false, mvp_matrix)
+
+	self.program.Validate()
+	if err := glw.CheckGlError(); err != nil {
+		err.Description = "Program.Validate failed."
+		panic(err)
+	}
+	status := self.program.Get(gl.VALIDATE_STATUS)
+	if err := glw.CheckGlError(); err != nil {
+		err.Description = "Program.Get(VALIDATE_STATUS) failed."
+		panic(err)
+	}
+	if status == gl.FALSE {
+		infolog := self.program.GetInfoLog()
+		gl.GetError() // Clear error flag if infolog derped.
+		panic(fmt.Errorf("Program validation failed. Log: %v", infolog))
+	}
+
 	gl.DrawElements(gl.TRIANGLE_STRIP, self.n_elements, gl.UNSIGNED_BYTE, nil)
 }
 
@@ -105,21 +122,13 @@ func Cube() Drawable {
 	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
 
-	vsh, err := Shaders.Serve(glw.VSH_POS3)
-	if err != nil {
-		panic(err)
-	}
-	fsh, err := Shaders.Serve(glw.FSH_ZRED)
+	srefs := glw.ShaderRefs{glw.VSH_POS3, glw.FSH_ZRED}
+	program, err := Programs.Serve(srefs)
 	if err != nil {
 		panic(err)
 	}
 
-	program := gl.CreateProgram()
-	program.AttachShader(vsh)
-	program.AttachShader(fsh)
-	program.Link()
 	program.Use()
-	fmt.Println(program.GetInfoLog())
 
 	att := program.GetAttribLocation("vpos")
 	att.EnableArray()
@@ -155,21 +164,11 @@ func Pyramid() Drawable {
 	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
 
-	vsh, err := Shaders.Serve(glw.VSH_POS3)
+	srefs := glw.ShaderRefs{glw.VSH_POS3, glw.FSH_ZGREEN}
+	program, err := Programs.Serve(srefs)
 	if err != nil {
 		panic(err)
 	}
-	fsh, err := Shaders.Serve(glw.FSH_ZGREEN)
-	if err != nil {
-		panic(err)
-	}
-
-	program := gl.CreateProgram()
-	program.AttachShader(vsh)
-	program.AttachShader(fsh)
-	program.Link()
-	program.Use()
-	fmt.Println(program.GetInfoLog())
 
 	att := program.GetAttribLocation("vpos")
 	att.EnableArray()
@@ -400,7 +399,7 @@ func main() {
 	gl.GetError()
 
 	var program_state ProgramState
-	Shaders = make(glw.Shaders)
+	Programs = glw.MakePrograms()
 
 	program_state.Shapes[CUBE_ID] = Cube()
 	program_state.Shapes[PYRAMID_ID] = Pyramid()

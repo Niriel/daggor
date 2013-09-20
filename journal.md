@@ -256,3 +256,14 @@ I start with keeping cubes and pyramids but I make them technically floor
 elements.  This is because I do not wish to change looks and logic at the same
 time.
 
+It is now time to change the appearance of things.  I can keep the cube and
+pyramid around to use them as place holders later, but right now I need floors.
+A floor should be easy, just a square, two triangles.  One detail though: I want
+it to have a facing, I should be able to rotate it.  Since I do not want to
+play with textures for now, I will have to put colors in the vertices.  That
+requires two new shaders.
+
+Adding more shaders calls for a shader management tools.  I want to come up with
+a function that abstracts the whole shader and program process, creating/
+compiling them on the fly.
+
