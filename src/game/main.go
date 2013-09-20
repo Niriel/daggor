@@ -436,7 +436,7 @@ func main() {
 	glfw.SetErrorCallback(errorCallback)
 
 	if !glfw.Init() {
-		panic("Can't init glfw!")
+		panic("GLFW initialization failed.")
 	}
 	defer glfw.Terminate()
 
