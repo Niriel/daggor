@@ -66,6 +66,7 @@ type Drawable struct {
 
 const CUBE_ID = 0
 const PYRAMID_ID = 1
+const FLOOR_ID = 2
 
 func (self *Drawable) Draw(mvp_matrix *[16]float32) {
 	// Bindind the VAO each time is not efficient but
@@ -97,14 +98,14 @@ func Cube() Drawable {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
 	vertices := [...]gl.GLfloat{
-		m, m, m,
-		m, m, p,
-		m, p, m,
-		m, p, p,
-		p, m, m,
-		p, m, p,
-		p, p, m,
-		p, p, p,
+		m, m, 0,
+		m, m, 1,
+		m, p, 0,
+		m, p, 1,
+		p, m, 0,
+		p, m, 1,
+		p, p, 0,
+		p, p, 1,
 	}
 	// Indices for triangle strip adapted from
 	// http://www.cs.umd.edu/gvil/papers/av_ts.pdf .
@@ -139,6 +140,7 @@ func Cube() Drawable {
 		0,
 		nil)
 	mvp := program.GetUniformLocation("mvp")
+	vbuf.Unbind(gl.ARRAY_BUFFER)
 	return Drawable{vao, mvp, program, len(indices)}
 }
 
@@ -146,11 +148,11 @@ func Pyramid() Drawable {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
 	vertices := [...]gl.GLfloat{
-		m, m, m,
-		m, p, m,
-		p, m, m,
-		p, p, m,
-		0, 0, p,
+		m, m, 0,
+		m, p, 0,
+		p, m, 0,
+		p, p, 0,
+		0, 0, 1,
 	}
 	indices := [...]gl.GLubyte{
 		1, 4, 3, 2, 1, 0, 4, 2,
@@ -160,6 +162,7 @@ func Pyramid() Drawable {
 	vbuf := gl.GenBuffer()
 	vbuf.Bind(gl.ARRAY_BUFFER)
 	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.STATIC_DRAW)
+
 	ebuf := gl.GenBuffer()
 	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
@@ -179,6 +182,59 @@ func Pyramid() Drawable {
 		0,
 		nil)
 	mvp := program.GetUniformLocation("mvp")
+	vbuf.Unbind(gl.ARRAY_BUFFER)
+	return Drawable{vao, mvp, program, len(indices)}
+}
+
+func Floor() Drawable {
+	const p = .5 // Plus sign.
+	const m = -p // Minus sign.
+	vertices := [...]gl.GLfloat{
+		// x y z r v b
+		m, m, 0, .1, .1, .5,
+		m, p, 0, .1, .1, .5,
+		p, m, 0, 0, 1, 0,
+		p, p, 0, 1, 0, 0,
+	}
+	indices := [...]gl.GLubyte{
+		0, 2, 1, 3,
+	}
+	vao := gl.GenVertexArray()
+	vao.Bind()
+
+	vbuf := gl.GenBuffer()
+	vbuf.Bind(gl.ARRAY_BUFFER)
+	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.STATIC_DRAW)
+
+	ebuf := gl.GenBuffer()
+	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
+	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
+
+	srefs := glw.ShaderRefs{glw.VSH_COL3, glw.FSH_VCOL}
+	program, err := Programs.Serve(srefs)
+	if err != nil {
+		panic(err)
+	}
+
+	att := program.GetAttribLocation("vpos")
+	att.EnableArray()
+	att.AttribPointer(
+		3,
+		gl.FLOAT,
+		false,
+		6*4,
+		uintptr(0))
+	att = program.GetAttribLocation("vcol")
+	att.EnableArray()
+	att.AttribPointer(
+		3,
+		gl.FLOAT,
+		false,
+		6*4,
+		uintptr(3*4))
+	mvp := program.GetUniformLocation("mvp")
+
+	vbuf.Unbind(gl.ARRAY_BUFFER)
 	return Drawable{vao, mvp, program, len(indices)}
 }
 
@@ -193,6 +249,7 @@ const (
 	COMMAND_TURN_RIGHT
 	COMMAND_PLACE_CUBE
 	COMMAND_PLACE_PYRAMID
+	COMMAND_PLACE_FLOOR
 	COMMAND_REMOVE_SHAPE
 	COMMAND_SAVE
 	COMMAND_LOAD
@@ -222,6 +279,8 @@ func Commands(events []GlfwKeyEvent) []Command {
 				result = append(result, COMMAND_PLACE_CUBE)
 			case glfw.KeyP:
 				result = append(result, COMMAND_PLACE_PYRAMID)
+			case glfw.KeyF:
+				result = append(result, COMMAND_PLACE_FLOOR)
 			case glfw.KeyDelete:
 				result = append(result, COMMAND_REMOVE_SHAPE)
 			case glfw.KeyF4:
@@ -277,7 +336,7 @@ func (self Player) StrafeRight() Player {
 }
 func (self Player) ViewMatrix() glm.Matrix4 {
 	R := glm.RotZ(float64(-90 * self.F))
-	T := glm.Vector3{float64(-self.X), float64(-self.Y), 0}.Translation()
+	T := glm.Vector3{float64(-self.X), float64(-self.Y), -.6}.Translation()
 	return R.Mult(T)
 }
 
@@ -287,7 +346,7 @@ type World struct {
 }
 
 type ProgramState struct {
-	Shapes [2]Drawable
+	Shapes [3]Drawable
 	World  World
 }
 
@@ -317,6 +376,8 @@ func LevelCommand(level world.Level, player Player, command Command) world.Level
 		level.Floors = level.Floors.Set(x, y, CUBE_ID)
 	case COMMAND_PLACE_PYRAMID:
 		level.Floors = level.Floors.Set(x, y, PYRAMID_ID)
+	case COMMAND_PLACE_FLOOR:
+		level.Floors = level.Floors.Set(x, y, FLOOR_ID)
 	case COMMAND_REMOVE_SHAPE:
 		level.Floors = level.Floors.Delete(x, y)
 	}
@@ -403,6 +464,7 @@ func main() {
 
 	program_state.Shapes[CUBE_ID] = Cube()
 	program_state.Shapes[PYRAMID_ID] = Pyramid()
+	program_state.Shapes[FLOOR_ID] = Floor()
 	tiles := map[[2]int]int{
 		[2]int{0, 4}: CUBE_ID,
 		[2]int{1, 3}: CUBE_ID,
