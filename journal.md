@@ -267,3 +267,11 @@ Adding more shaders calls for a shader management tools.  I want to come up with
 a function that abstracts the whole shader and program process, creating/
 compiling them on the fly.
 
+I created a new 3D model.  Just a flat square for the floor.  Its vertices have
+different colors so you can see its orientation.  You can place it with `F` and
+rotate it with `[` and `]`.  You cannot rotate cubes and pyramids, not just
+because it would not show, but because they do not have a facing information.
+Indeed, I now have two types of buildings, one with and one without facing.
+They both share a common interface so they can be processed together.  Type
+assertions allows me to check whether I can rotate.
+

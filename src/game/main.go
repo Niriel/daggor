@@ -252,6 +252,8 @@ const (
 	COMMAND_PLACE_CUBE
 	COMMAND_PLACE_PYRAMID
 	COMMAND_PLACE_FLOOR
+	COMMAND_ROTATE_SHAPE_DIRECT
+	COMMAND_ROTATE_SHAPE_RETROGRADE
 	COMMAND_REMOVE_SHAPE
 	COMMAND_SAVE
 	COMMAND_LOAD
@@ -285,6 +287,10 @@ func Commands(events []GlfwKeyEvent) []Command {
 				result = append(result, COMMAND_PLACE_FLOOR)
 			case glfw.KeyDelete:
 				result = append(result, COMMAND_REMOVE_SHAPE)
+			case glfw.KeyLeftBracket:
+				result = append(result, COMMAND_ROTATE_SHAPE_DIRECT)
+			case glfw.KeyRightBracket:
+				result = append(result, COMMAND_ROTATE_SHAPE_RETROGRADE)
 			case glfw.KeyF4:
 				result = append(result, COMMAND_SAVE)
 			case glfw.KeyF5:
@@ -379,7 +385,31 @@ func LevelCommand(level world.Level, player Player, command Command) world.Level
 	case COMMAND_PLACE_PYRAMID:
 		level.Floors = level.Floors.Set(x, y, world.MakeBaseBuilding(PYRAMID_ID))
 	case COMMAND_PLACE_FLOOR:
-		level.Floors = level.Floors.Set(x, y, world.MakeOrientedBuilding(FLOOR_ID, 1))
+		level.Floors = level.Floors.Set(x, y, world.MakeOrientedBuilding(FLOOR_ID, 0))
+	case COMMAND_ROTATE_SHAPE_DIRECT:
+		{
+			coords := world.Coords{X: x, Y: y}
+			floor := level.Floors[coords]
+			orientable, ok := floor.(world.OrientedBuilding)
+			if ok {
+				orientable.Facing = (orientable.Facing + 1) % 4
+				level.Floors = level.Floors.Set(x, y, orientable)
+			} else {
+				fmt.Println("You cannot rotate that.")
+			}
+		}
+	case COMMAND_ROTATE_SHAPE_RETROGRADE:
+		{
+			coords := world.Coords{X: x, Y: y}
+			floor := level.Floors[coords]
+			orientable, ok := floor.(world.OrientedBuilding)
+			if ok {
+				orientable.Facing = (orientable.Facing + 3) % 4
+				level.Floors = level.Floors.Set(x, y, orientable)
+			} else {
+				fmt.Println("You cannot rotate that.")
+			}
+		}
 	case COMMAND_REMOVE_SHAPE:
 		level.Floors = level.Floors.Delete(x, y)
 	}
