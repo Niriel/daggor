@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/go-gl/gl"
 	glfw "github.com/go-gl/glfw3"
-	"glm" // Local import, make sure Daggor is in your gopath.
+	"glm"
 	"glw"
 	"os"
 	"runtime"
@@ -38,8 +38,8 @@ type GlfwKeyEventList struct {
 	list []GlfwKeyEvent
 }
 
-func MakeGlfwKeyEventList() GlfwKeyEventList {
-	return GlfwKeyEventList{
+func MakeGlfwKeyEventList() *GlfwKeyEventList {
+	return &GlfwKeyEventList{
 		make([]GlfwKeyEvent, 0, EVENT_LIST_CAP),
 	}
 }
@@ -48,13 +48,14 @@ func (self *GlfwKeyEventList) Freeze() []GlfwKeyEvent {
 	// The list of key events is double buffered.  This allows the application
 	// to process events during a frame without having to worry about new
 	// events arriving and growing the list.
-	result := self.list
+	frozen := self.list
 	self.list = make([]GlfwKeyEvent, 0, EVENT_LIST_CAP)
-	return result
+	return frozen
 }
 
 func (self *GlfwKeyEventList) Callback(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
-	self.list = append(self.list, GlfwKeyEvent{key, scancode, action, mods})
+	event := GlfwKeyEvent{key, scancode, action, mods}
+	self.list = append(self.list, event)
 }
 
 type Drawable struct {
@@ -353,9 +354,16 @@ type World struct {
 	Level  world.Level
 }
 
+type GlState struct {
+	P glm.Matrix4
+}
+
 type ProgramState struct {
-	Shapes [3]Drawable
-	World  World
+	Shapes           [3]Drawable
+	Window           *glfw.Window
+	GlfwKeyEventList *GlfwKeyEventList
+	Gl               GlState
+	World            World
 }
 
 func PlayerCommand(player Player, command Command) Player {
@@ -461,6 +469,8 @@ func Load() (*World, error) {
 }
 
 func main() {
+	var program_state ProgramState
+	var err error
 	gob.Register(world.MakeBaseBuilding(0))
 	gob.Register(world.MakeOrientedBuilding(0, 0))
 	glfw.SetErrorCallback(errorCallback)
@@ -474,16 +484,16 @@ func main() {
 	glfw.WindowHint(glfw.ContextVersionMinor, 3)
 	glfw.WindowHint(glfw.SrgbCapable, 1)
 	glfw.WindowHint(glfw.Resizable, 0)
-	window, err := glfw.CreateWindow(640, 480, "Daggor", nil, nil)
+	program_state.Window, err = glfw.CreateWindow(640, 480, "Daggor", nil, nil)
 	if err != nil {
 		panic(err)
 	}
-	defer window.Destroy()
+	defer program_state.Window.Destroy()
 
-	glfwKeyEventList := MakeGlfwKeyEventList()
-	window.SetKeyCallback(glfwKeyEventList.Callback)
+	program_state.GlfwKeyEventList = MakeGlfwKeyEventList()
+	program_state.Window.SetKeyCallback(program_state.GlfwKeyEventList.Callback)
 
-	window.MakeContextCurrent()
+	program_state.Window.MakeContextCurrent()
 	ec := gl.Init()
 	if ec != 0 {
 		panic(fmt.Sprintf("OpenGL initialization failed with code %v.", ec))
@@ -491,9 +501,12 @@ func main() {
 	// For some reason, here, the OpenGL error flag for me contains "Invalid enum".
 	// This is weird since I have not done anything yet.  I imagine that something
 	// goes wrong in gl.Init.  Reading the error flag clears it, so I do it.
-	gl.GetError()
+	err = glw.CheckGlError()
+	if err != nil {
+		err.(*glw.GlError).Description = "OpenGl has this error right after init for some reason."
+		fmt.Println(err)
+	}
 
-	var program_state ProgramState
 	Programs = glw.MakePrograms()
 
 	program_state.Shapes[CUBE_ID] = Cube()
@@ -523,16 +536,48 @@ func main() {
 	// an angle of 0 points to the right (east) of the trigonometric
 	// circle.  Bonus point: this matches Blender's reference frame.
 	my_frame := glm.ZUP.Mult(glm.RotZ(90))
-	p := glm.PerspectiveProj(110, 640./480., .1, 100).Mult(my_frame)
+	program_state.Gl.P = glm.PerspectiveProj(110, 640./480., .1, 100).Mult(my_frame)
 
 	gl.Enable(gl.DEPTH_TEST)
 	gl.Enable(gl.CULL_FACE)
 	gl.CullFace(gl.BACK)
 	gl.FrontFace(gl.CCW)
-	for !window.ShouldClose() {
-		keys := glfwKeyEventList.Freeze()
+	MainLoop(program_state)
+}
+
+func MainLoop(program_state ProgramState) ProgramState {
+	ticker := time.NewTicker(15 * time.Millisecond)
+	keep_ticking := true
+	for keep_ticking {
+		select {
+		case _, ok := <-ticker.C:
+			{
+				if ok {
+					program_state, keep_ticking = OnTick(program_state)
+					if !keep_ticking {
+						fmt.Println("No more ticks.")
+						ticker.Stop()
+					}
+				} else {
+					fmt.Println("Ticker closed, weird.")
+				}
+			}
+		}
+	}
+	return program_state
+}
+
+func OnTick(program_state ProgramState) (ProgramState, bool) {
+	glfw.PollEvents()
+	keep_ticking := !program_state.Window.ShouldClose()
+	if keep_ticking {
+		// Read raw inputs.
+		keys := program_state.GlfwKeyEventList.Freeze()
+		// Analyze the inputs, see what they mean.
 		commands := Commands(keys)
+		// Evolve the program one step.
 		program_state = NewProgramState(program_state, commands)
+		// Render on screen.
 		v := program_state.World.Player.ViewMatrix()
 		gl.ClearColor(0.0, 0.0, 0.4, 0.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -548,11 +593,10 @@ func main() {
 					m = m.Mult(R)
 				}
 			}
-			mvp := p.Mult(v).Mult(m).Gl()
+			mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
 			program_state.Shapes[floor.Model()].Draw(&mvp)
 		}
-		window.SwapBuffers()
-		time.Sleep(15 * time.Millisecond)
-		glfw.PollEvents()
+		program_state.Window.SwapBuffers()
 	}
+	return program_state, keep_ticking
 }
