@@ -355,11 +355,11 @@ type World struct {
 type GlState struct {
 	Programs glw.Programs
 	P        glm.Matrix4
+	Window   *glfw.Window
 }
 
 type ProgramState struct {
 	Shapes           [3]Drawable
-	Window           *glfw.Window
 	GlfwKeyEventList *GlfwKeyEventList
 	Gl               GlState
 	World            World
@@ -483,16 +483,16 @@ func main() {
 	glfw.WindowHint(glfw.ContextVersionMinor, 3)
 	glfw.WindowHint(glfw.SrgbCapable, 1)
 	glfw.WindowHint(glfw.Resizable, 0)
-	program_state.Window, err = glfw.CreateWindow(640, 480, "Daggor", nil, nil)
+	program_state.Gl.Window, err = glfw.CreateWindow(640, 480, "Daggor", nil, nil)
 	if err != nil {
 		panic(err)
 	}
-	defer program_state.Window.Destroy()
+	defer program_state.Gl.Window.Destroy()
 
 	program_state.GlfwKeyEventList = MakeGlfwKeyEventList()
-	program_state.Window.SetKeyCallback(program_state.GlfwKeyEventList.Callback)
+	program_state.Gl.Window.SetKeyCallback(program_state.GlfwKeyEventList.Callback)
 
-	program_state.Window.MakeContextCurrent()
+	program_state.Gl.Window.MakeContextCurrent()
 	ec := gl.Init()
 	if ec != 0 {
 		panic(fmt.Sprintf("OpenGL initialization failed with code %v.", ec))
@@ -568,7 +568,7 @@ func MainLoop(program_state ProgramState) ProgramState {
 
 func OnTick(program_state ProgramState) (ProgramState, bool) {
 	glfw.PollEvents()
-	keep_ticking := !program_state.Window.ShouldClose()
+	keep_ticking := !program_state.Gl.Window.ShouldClose()
 	if keep_ticking {
 		// Read raw inputs.
 		keys := program_state.GlfwKeyEventList.Freeze()
@@ -595,7 +595,7 @@ func OnTick(program_state ProgramState) (ProgramState, bool) {
 			mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
 			program_state.Shapes[floor.Model()].Draw(&mvp)
 		}
-		program_state.Window.SwapBuffers()
+		program_state.Gl.Window.SwapBuffers()
 	}
 	return program_state, keep_ticking
 }
