@@ -353,16 +353,16 @@ type World struct {
 }
 
 type GlState struct {
-	Programs glw.Programs
-	P        glm.Matrix4
-	Window   *glfw.Window
+	Window           *glfw.Window
+	GlfwKeyEventList *GlfwKeyEventList
+	Programs         glw.Programs
+	P                glm.Matrix4
+	Shapes           [3]Drawable
 }
 
 type ProgramState struct {
-	Shapes           [3]Drawable
-	GlfwKeyEventList *GlfwKeyEventList
-	Gl               GlState
-	World            World
+	Gl    GlState
+	World World
 }
 
 func PlayerCommand(player Player, command Command) Player {
@@ -489,8 +489,8 @@ func main() {
 	}
 	defer program_state.Gl.Window.Destroy()
 
-	program_state.GlfwKeyEventList = MakeGlfwKeyEventList()
-	program_state.Gl.Window.SetKeyCallback(program_state.GlfwKeyEventList.Callback)
+	program_state.Gl.GlfwKeyEventList = MakeGlfwKeyEventList()
+	program_state.Gl.Window.SetKeyCallback(program_state.Gl.GlfwKeyEventList.Callback)
 
 	program_state.Gl.Window.MakeContextCurrent()
 	ec := gl.Init()
@@ -508,9 +508,9 @@ func main() {
 
 	program_state.Gl.Programs = glw.MakePrograms()
 
-	program_state.Shapes[CUBE_ID] = Cube(program_state.Gl.Programs)
-	program_state.Shapes[PYRAMID_ID] = Pyramid(program_state.Gl.Programs)
-	program_state.Shapes[FLOOR_ID] = Floor(program_state.Gl.Programs)
+	program_state.Gl.Shapes[CUBE_ID] = Cube(program_state.Gl.Programs)
+	program_state.Gl.Shapes[PYRAMID_ID] = Pyramid(program_state.Gl.Programs)
+	program_state.Gl.Shapes[FLOOR_ID] = Floor(program_state.Gl.Programs)
 	tiles := map[[2]int]world.ModelId{
 		[2]int{0, 4}: CUBE_ID,
 		[2]int{1, 3}: CUBE_ID,
@@ -571,7 +571,7 @@ func OnTick(program_state ProgramState) (ProgramState, bool) {
 	keep_ticking := !program_state.Gl.Window.ShouldClose()
 	if keep_ticking {
 		// Read raw inputs.
-		keys := program_state.GlfwKeyEventList.Freeze()
+		keys := program_state.Gl.GlfwKeyEventList.Freeze()
 		// Analyze the inputs, see what they mean.
 		commands := Commands(keys)
 		// Evolve the program one step.
@@ -593,7 +593,7 @@ func OnTick(program_state ProgramState) (ProgramState, bool) {
 				}
 			}
 			mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
-			program_state.Shapes[floor.Model()].Draw(&mvp)
+			program_state.Gl.Shapes[floor.Model()].Draw(&mvp)
 		}
 		program_state.Gl.Window.SwapBuffers()
 	}
