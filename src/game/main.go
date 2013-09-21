@@ -15,8 +15,6 @@ import (
 	"world"
 )
 
-var Programs glw.Programs
-
 func init() {
 	runtime.LockOSThread()
 }
@@ -97,7 +95,7 @@ func (self *Drawable) Draw(mvp_matrix *[16]float32) {
 	gl.DrawElements(gl.TRIANGLE_STRIP, self.n_elements, gl.UNSIGNED_BYTE, nil)
 }
 
-func Cube() Drawable {
+func Cube(programs glw.Programs) Drawable {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
 	vertices := [...]gl.GLfloat{
@@ -127,7 +125,7 @@ func Cube() Drawable {
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
 
 	srefs := glw.ShaderRefs{glw.VSH_POS3, glw.FSH_ZRED}
-	program, err := Programs.Serve(srefs)
+	program, err := programs.Serve(srefs)
 	if err != nil {
 		panic(err)
 	}
@@ -147,7 +145,7 @@ func Cube() Drawable {
 	return Drawable{vao, mvp, program, len(indices)}
 }
 
-func Pyramid() Drawable {
+func Pyramid(programs glw.Programs) Drawable {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
 	vertices := [...]gl.GLfloat{
@@ -171,7 +169,7 @@ func Pyramid() Drawable {
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
 
 	srefs := glw.ShaderRefs{glw.VSH_POS3, glw.FSH_ZGREEN}
-	program, err := Programs.Serve(srefs)
+	program, err := programs.Serve(srefs)
 	if err != nil {
 		panic(err)
 	}
@@ -189,7 +187,7 @@ func Pyramid() Drawable {
 	return Drawable{vao, mvp, program, len(indices)}
 }
 
-func Floor() Drawable {
+func Floor(programs glw.Programs) Drawable {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
 	vertices := [...]gl.GLfloat{
@@ -214,7 +212,7 @@ func Floor() Drawable {
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
 
 	srefs := glw.ShaderRefs{glw.VSH_COL3, glw.FSH_VCOL}
-	program, err := Programs.Serve(srefs)
+	program, err := programs.Serve(srefs)
 	if err != nil {
 		panic(err)
 	}
@@ -355,7 +353,8 @@ type World struct {
 }
 
 type GlState struct {
-	P glm.Matrix4
+	Programs glw.Programs
+	P        glm.Matrix4
 }
 
 type ProgramState struct {
@@ -507,11 +506,11 @@ func main() {
 		fmt.Println(err)
 	}
 
-	Programs = glw.MakePrograms()
+	program_state.Gl.Programs = glw.MakePrograms()
 
-	program_state.Shapes[CUBE_ID] = Cube()
-	program_state.Shapes[PYRAMID_ID] = Pyramid()
-	program_state.Shapes[FLOOR_ID] = Floor()
+	program_state.Shapes[CUBE_ID] = Cube(program_state.Gl.Programs)
+	program_state.Shapes[PYRAMID_ID] = Pyramid(program_state.Gl.Programs)
+	program_state.Shapes[FLOOR_ID] = Floor(program_state.Gl.Programs)
 	tiles := map[[2]int]world.ModelId{
 		[2]int{0, 4}: CUBE_ID,
 		[2]int{1, 3}: CUBE_ID,

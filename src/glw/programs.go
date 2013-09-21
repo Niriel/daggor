@@ -17,6 +17,13 @@ func MakeProgramRef(shaders ShaderRefs) ProgramRef {
 }
 
 type Programs struct {
+	// This structure is not supposed to be mutable.  That is,
+	// the `shaders` and `programs` field will never change after
+	// their creation.  They will always point to the same maps.
+	// However, the maps can change.  Anyway, it is all hidden
+	// from the caller since these fields are not exported.
+	// So what I mean is: pass your instance of Programs by
+	// value, not by address, unless you think that you need to.
 	shaders  Shaders
 	programs map[ProgramRef]gl.Program
 }
