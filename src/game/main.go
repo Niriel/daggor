@@ -2,13 +2,11 @@
 package main
 
 import (
-	"encoding/gob"
 	"fmt"
 	"github.com/go-gl/gl"
 	glfw "github.com/go-gl/glfw3"
 	"glm"
 	"glw"
-	"os"
 	"runtime"
 	"time"
 	"unsafe"
@@ -16,6 +14,8 @@ import (
 )
 
 func init() {
+	// OpenGL and GLFW want to run on the main thread.
+	// Or at least, want to run always from the same thread.
 	runtime.LockOSThread()
 }
 
@@ -300,56 +300,10 @@ func Commands(events []GlfwKeyEvent) []Command {
 	return result
 }
 
-var SIN = [...]int{0, 1, 0, -1}
-var COS = [...]int{1, 0, -1, 0}
-
-type Player struct {
-	X int // Position.
-	Y int // Position.
-	F int // Facing.
-}
-
-func (self Player) TurnLeft() Player {
-	self.F = (self.F + 1) % 4
-	return self
-}
-func (self Player) TurnRight() Player {
-	// Here I add 3, because if I subtract 1 I get the stupid
-	// go result: -1 % 4 = -1 (go) instead of -1 % 4 = 3 (python).
-	// See this discussion:
-	// https://code.google.com/p/go/issues/detail?id=448
-	self.F = (self.F + 3) % 4
-	return self
-}
-func (self Player) Forward() Player {
-	self.X += COS[self.F]
-	self.Y += SIN[self.F]
-	return self
-}
-func (self Player) Backward() Player {
-	self.X -= COS[self.F]
-	self.Y -= SIN[self.F]
-	return self
-}
-func (self Player) StrafeLeft() Player {
-	self.X -= SIN[self.F]
-	self.Y += COS[self.F]
-	return self
-}
-func (self Player) StrafeRight() Player {
-	self.X += SIN[self.F]
-	self.Y -= COS[self.F]
-	return self
-}
-func (self Player) ViewMatrix() glm.Matrix4 {
-	R := glm.RotZ(float64(-90 * self.F))
-	T := glm.Vector3{float64(-self.X), float64(-self.Y), -.6}.Translation()
+func ViewMatrix(pos world.Position) glm.Matrix4 {
+	R := glm.RotZ(float64(-90 * pos.F))
+	T := glm.Vector3{float64(-pos.X), float64(-pos.Y), -.6}.Translation()
 	return R.Mult(T)
-}
-
-type World struct {
-	Player Player
-	Level  world.Level
 }
 
 type GlState struct {
@@ -361,30 +315,30 @@ type GlState struct {
 }
 
 type ProgramState struct {
-	Gl    GlState
-	World World
+	Gl    GlState     // Highly mutable, inpure.
+	World world.World // Immutable, pure.
 }
 
-func PlayerCommand(player Player, command Command) Player {
+func PlayerCommand(player world.Player, command Command) world.Player {
 	switch command {
 	case COMMAND_TURN_LEFT:
-		return player.TurnLeft()
+		player.Pos = player.Pos.TurnLeft()
 	case COMMAND_TURN_RIGHT:
-		return player.TurnRight()
+		player.Pos = player.Pos.TurnRight()
 	case COMMAND_BACKWARD:
-		return player.Backward()
+		player.Pos = player.Pos.Backward()
 	case COMMAND_FORWARD:
-		return player.Forward()
+		player.Pos = player.Pos.Forward()
 	case COMMAND_STRAFE_LEFT:
-		return player.StrafeLeft()
+		player.Pos = player.Pos.StrafeLeft()
 	case COMMAND_STRAFE_RIGHT:
-		return player.StrafeRight()
+		player.Pos = player.Pos.StrafeRight()
 	}
 	return player
 }
 
-func LevelCommand(level world.Level, player Player, command Command) world.Level {
-	where := player.Forward()
+func LevelCommand(level world.Level, player world.Player, command Command) world.Level {
+	where := player.Pos.Forward()
 	x, y := world.Coord(where.X), world.Coord(where.Y)
 	switch command {
 	case COMMAND_PLACE_CUBE:
@@ -393,25 +347,20 @@ func LevelCommand(level world.Level, player Player, command Command) world.Level
 		level.Floors = level.Floors.Set(x, y, world.MakeBaseBuilding(PYRAMID_ID))
 	case COMMAND_PLACE_FLOOR:
 		level.Floors = level.Floors.Set(x, y, world.MakeOrientedBuilding(FLOOR_ID, 0))
-	case COMMAND_ROTATE_SHAPE_DIRECT:
+	case COMMAND_ROTATE_SHAPE_DIRECT, COMMAND_ROTATE_SHAPE_RETROGRADE:
 		{
-			coords := world.Coords{X: x, Y: y}
-			floor := level.Floors[coords]
-			orientable, ok := floor.(world.OrientedBuilding)
-			if ok {
-				orientable.Facing = (orientable.Facing + 1) % 4
-				level.Floors = level.Floors.Set(x, y, orientable)
+			var offset int
+			if command == COMMAND_ROTATE_SHAPE_DIRECT {
+				offset = 1
 			} else {
-				fmt.Println("You cannot rotate that.")
+				offset = 3
+				// Equivalent to -1 with modulo 4.
+				// Because Go's modulo is stupid.
 			}
-		}
-	case COMMAND_ROTATE_SHAPE_RETROGRADE:
-		{
-			coords := world.Coords{X: x, Y: y}
-			floor := level.Floors[coords]
+			floor := level.Floors[world.Location{X: x, Y: y}]
 			orientable, ok := floor.(world.OrientedBuilding)
 			if ok {
-				orientable.Facing = (orientable.Facing + 3) % 4
+				orientable.Facing = (orientable.Facing + offset) % 4
 				level.Floors = level.Floors.Set(x, y, orientable)
 			} else {
 				fmt.Println("You cannot rotate that.")
@@ -434,10 +383,10 @@ func NewProgramState(program_state ProgramState, commands []Command) ProgramStat
 		case command <= COMMAND_REMOVE_SHAPE:
 			program_state.World.Level = LevelCommand(program_state.World.Level, program_state.World.Player, command)
 		case command == COMMAND_SAVE:
-			err := Save(program_state.World)
+			err := program_state.World.Save()
 			fmt.Println("Save:", err)
 		case command == COMMAND_LOAD:
-			world, err := Load()
+			world, err := world.Load()
 			fmt.Println("Load:", err)
 			if err == nil {
 				program_state.World = *world
@@ -447,31 +396,9 @@ func NewProgramState(program_state ProgramState, commands []Command) ProgramStat
 	return program_state
 }
 
-func Save(world World) error {
-	f, err := os.Create("quicksave.sav")
-	if err != nil {
-		return err
-	}
-	encoder := gob.NewEncoder(f)
-	return encoder.Encode(world)
-}
-
-func Load() (*World, error) {
-	f, err := os.Open("quicksave.sav")
-	if err != nil {
-		return nil, err
-	}
-	var world World
-	decoder := gob.NewDecoder(f)
-	err = decoder.Decode(&world)
-	return &world, err
-}
-
 func main() {
 	var program_state ProgramState
 	var err error
-	gob.Register(world.MakeBaseBuilding(0))
-	gob.Register(world.MakeOrientedBuilding(0, 0))
 	glfw.SetErrorCallback(errorCallback)
 
 	if !glfw.Init() {
@@ -502,7 +429,7 @@ func main() {
 	// goes wrong in gl.Init.  Reading the error flag clears it, so I do it.
 	err = glw.CheckGlError()
 	if err != nil {
-		err.(*glw.GlError).Description = "OpenGl has this error right after init for some reason."
+		err.(*glw.GlError).Description = "OpenGL has this error right after init for some reason."
 		fmt.Println(err)
 	}
 
@@ -559,6 +486,7 @@ func MainLoop(program_state ProgramState) ProgramState {
 					}
 				} else {
 					fmt.Println("Ticker closed, weird.")
+					keep_ticking = false
 				}
 			}
 		}
@@ -577,7 +505,7 @@ func OnTick(program_state ProgramState) (ProgramState, bool) {
 		// Evolve the program one step.
 		program_state = NewProgramState(program_state, commands)
 		// Render on screen.
-		v := program_state.World.Player.ViewMatrix()
+		v := ViewMatrix(program_state.World.Player.Pos)
 		gl.ClearColor(0.0, 0.0, 0.4, 0.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		for coords, floor := range program_state.World.Level.Floors {
