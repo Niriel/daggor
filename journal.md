@@ -281,3 +281,22 @@ Time to get walls.  I hardcoded a wall, just a vertical square.  It is still
 used as a floor tile which makes no sense, but I will start activating the walls
 and ceilings.
 
+Placing walls was surprisingly easy.  I have a loop over the four possible
+facings in order to render the four lists of walls.  The walls that I have
+designed are, on purpose, not touching the border of the tiles.  This simulates
+their thickness.  Of course, this results in the ability to see between walls
+when it should not be possible.  That is OK:  the artist will come up with
+different meshes for different walls, adapted to the various configurations of
+walls.
+
+I am also thinking of having columns.  Columns live on the corners of tiles.
+They are not walls, they are they own type of building.  They never block
+movement, they are decorative.  One possible use of columns is to hide the
+seams between walls.  The columns live in a coordinate space that is shifted
+relatively to the center of the tiles.  They are shifted toward -x -y.
+Therefore, the column that has coordinates (4, 6) in its list corresponds to the
+south-west corner of the tile (4, 6), so will be centered on (3.5, 5.5).
+Columns are orientable buildings.  By the way, if the artist wishes to place a
+column in a middle of a tile for some reason, he can, it's just a prop on a tile
+like any other, but it is not what we technically call column inside the engine.
+

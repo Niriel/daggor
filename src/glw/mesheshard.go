@@ -153,14 +153,17 @@ func Floor(programs Programs) Drawable {
 }
 
 func Wall(programs Programs) Drawable {
+	// The wall meshes are relative to the center of the tile to which they belong.
+	// They are given for a facing of 0 (east), therefore this mesh depicts a
+	// western wall.
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
 	vertices := [...]gl.GLfloat{
 		// x y z r v b
-		.1, m, 0, .1, .1, .5,
-		.1, m, 1, .1, .1, .5,
-		.1, p, 0, 0, 1, 0,
-		.1, p, 1, 1, 0, 0,
+		-.4, m, 0, .1, .1, .5,
+		-.4, m, 1, 0, 1, 0,
+		-.4, p, 0, .1, .1, .5,
+		-.4, p, 1, 1, 0, 0,
 	}
 	indices := [...]gl.GLubyte{
 		0, 2, 1, 3,

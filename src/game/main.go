@@ -78,6 +78,7 @@ const (
 	COMMAND_ROTATE_SHAPE_DIRECT
 	COMMAND_ROTATE_SHAPE_RETROGRADE
 	COMMAND_REMOVE_SHAPE
+	COMMAND_REMOVE_WALL
 	COMMAND_SAVE
 	COMMAND_LOAD
 )
@@ -112,6 +113,8 @@ func Commands(events []GlfwKeyEvent) []Command {
 				result = append(result, COMMAND_PLACE_WALL)
 			case glfw.KeyDelete:
 				result = append(result, COMMAND_REMOVE_SHAPE)
+			case glfw.KeyBackspace:
+				result = append(result, COMMAND_REMOVE_WALL)
 			case glfw.KeyLeftBracket:
 				result = append(result, COMMAND_ROTATE_SHAPE_DIRECT)
 			case glfw.KeyRightBracket:
@@ -164,8 +167,10 @@ func PlayerCommand(player world.Player, command Command) world.Player {
 }
 
 func LevelCommand(level world.Level, player world.Player, command Command) world.Level {
-	where := player.Pos.Forward()
-	x, y := world.Coord(where.X), world.Coord(where.Y)
+	here := player.Pos
+	here_x, here_y := world.Coord(here.X), world.Coord(here.Y)
+	there := here.Forward()
+	x, y := world.Coord(there.X), world.Coord(there.Y)
 	switch command {
 	case COMMAND_PLACE_CUBE:
 		level.Floors = level.Floors.Set(x, y, world.MakeBaseBuilding(CUBE_ID))
@@ -174,7 +179,12 @@ func LevelCommand(level world.Level, player world.Player, command Command) world
 	case COMMAND_PLACE_FLOOR:
 		level.Floors = level.Floors.Set(x, y, world.MakeOrientedBuilding(FLOOR_ID, 0))
 	case COMMAND_PLACE_WALL:
-		level.Floors = level.Floors.Set(x, y, world.MakeBaseBuilding(WALL_ID))
+		{
+			// If the player faces North, then the wall must face South in order
+			// to face the player.
+			facing := (player.Pos.F + 2) % 4
+			level.Walls[facing] = level.Walls[facing].Set(here_x, here_y, world.MakeBaseBuilding(WALL_ID))
+		}
 	case COMMAND_ROTATE_SHAPE_DIRECT, COMMAND_ROTATE_SHAPE_RETROGRADE:
 		{
 			var offset int
@@ -196,6 +206,14 @@ func LevelCommand(level world.Level, player world.Player, command Command) world
 		}
 	case COMMAND_REMOVE_SHAPE:
 		level.Floors = level.Floors.Delete(x, y)
+	case COMMAND_REMOVE_WALL:
+		{
+			// If the player faces North, then the wall must face South in order
+			// to face the player.
+			fmt.Println("wwewew")
+			facing := (player.Pos.F + 2) % 4
+			level.Walls[facing] = level.Walls[facing].Delete(here_x, here_y)
+		}
 	}
 	return level
 }
@@ -208,7 +226,7 @@ func NewProgramState(program_state ProgramState, commands []Command) ProgramStat
 		switch {
 		case command <= COMMAND_TURN_RIGHT:
 			program_state.World.Player = PlayerCommand(program_state.World.Player, command)
-		case command <= COMMAND_REMOVE_SHAPE:
+		case command <= COMMAND_REMOVE_WALL:
 			program_state.World.Level = LevelCommand(program_state.World.Level, program_state.World.Player, command)
 		case command == COMMAND_SAVE:
 			err := program_state.World.Save()
@@ -334,25 +352,38 @@ func OnTick(program_state ProgramState) (ProgramState, bool) {
 		// Evolve the program one step.
 		program_state = NewProgramState(program_state, commands)
 		// Render on screen.
-		v := ViewMatrix(program_state.World.Player.Pos)
-		gl.ClearColor(0.0, 0.0, 0.4, 0.0)
-		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-		for coords, floor := range program_state.World.Level.Floors {
-			// The default model matrix only needs a translation.
-			m := glm.Vector3{float64(coords.X), float64(coords.Y), 0}.Translation()
-			switch floor.(type) {
-			case world.OrientedBuilding:
-				{
-					// But Oriented buildig have a rotation as well.
-					facing := floor.(world.OrientedBuilding).Facing
-					R := glm.RotZ(float64(90 * facing))
-					m = m.Mult(R)
-				}
-			}
-			mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
-			program_state.Gl.Shapes[floor.Model()].Draw(&mvp)
-		}
+		Render(program_state)
 		program_state.Gl.Window.SwapBuffers()
 	}
 	return program_state, keep_ticking
+}
+
+func Render(program_state ProgramState) {
+	gl.ClearColor(0.0, 0.0, 0.4, 0.0)
+	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+	v := ViewMatrix(program_state.World.Player.Pos)
+	for coords, floor := range program_state.World.Level.Floors {
+		// The default model matrix only needs a translation.
+		m := glm.Vector3{float64(coords.X), float64(coords.Y), 0}.Translation()
+		switch floor.(type) {
+		case world.OrientedBuilding:
+			{
+				// But Oriented buildig have a rotation as well.
+				facing := floor.(world.OrientedBuilding).Facing
+				R := glm.RotZ(float64(90 * facing))
+				m = m.Mult(R)
+			}
+		}
+		mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
+		program_state.Gl.Shapes[floor.Model()].Draw(&mvp)
+	}
+	for facing := 0; facing < 4; facing++ {
+		R := glm.RotZ(float64(90 * facing))
+		for coords, wall := range program_state.World.Level.Walls[facing] {
+			m := glm.Vector3{float64(coords.X), float64(coords.Y), 0}.Translation()
+			m = m.Mult(R)
+			mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
+			program_state.Gl.Shapes[wall.Model()].Draw(&mvp)
+		}
+	}
 }
