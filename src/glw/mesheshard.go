@@ -151,3 +151,55 @@ func Floor(programs Programs) Drawable {
 	vbuf.Unbind(gl.ARRAY_BUFFER)
 	return Drawable{vao, mvp, program, len(indices)}
 }
+
+func Wall(programs Programs) Drawable {
+	const p = .5 // Plus sign.
+	const m = -p // Minus sign.
+	vertices := [...]gl.GLfloat{
+		// x y z r v b
+		.1, m, 0, .1, .1, .5,
+		.1, m, 1, .1, .1, .5,
+		.1, p, 0, 0, 1, 0,
+		.1, p, 1, 1, 0, 0,
+	}
+	indices := [...]gl.GLubyte{
+		0, 2, 1, 3,
+	}
+	vao := gl.GenVertexArray()
+	vao.Bind()
+
+	vbuf := gl.GenBuffer()
+	vbuf.Bind(gl.ARRAY_BUFFER)
+	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.STATIC_DRAW)
+
+	ebuf := gl.GenBuffer()
+	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
+	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
+
+	srefs := ShaderRefs{VSH_COL3, FSH_VCOL}
+	program, err := programs.Serve(srefs)
+	if err != nil {
+		panic(err)
+	}
+
+	att := program.GetAttribLocation("vpos")
+	att.EnableArray()
+	att.AttribPointer(
+		3,
+		gl.FLOAT,
+		false,
+		6*4,
+		uintptr(0))
+	att = program.GetAttribLocation("vcol")
+	att.EnableArray()
+	att.AttribPointer(
+		3,
+		gl.FLOAT,
+		false,
+		6*4,
+		uintptr(3*4))
+	mvp := program.GetUniformLocation("mvp")
+
+	vbuf.Unbind(gl.ARRAY_BUFFER)
+	return Drawable{vao, mvp, program, len(indices)}
+}

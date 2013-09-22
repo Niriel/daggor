@@ -275,3 +275,9 @@ Indeed, I now have two types of buildings, one with and one without facing.
 They both share a common interface so they can be processed together.  Type
 assertions allows me to check whether I can rotate.
 
+Lots of refactoring.
+
+Time to get walls.  I hardcoded a wall, just a vertical square.  It is still
+used as a floor tile which makes no sense, but I will start activating the walls
+and ceilings.
+

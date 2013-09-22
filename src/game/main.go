@@ -59,6 +59,7 @@ const (
 	CUBE_ID = iota
 	PYRAMID_ID
 	FLOOR_ID
+	WALL_ID
 )
 
 type Command int
@@ -73,6 +74,7 @@ const (
 	COMMAND_PLACE_CUBE
 	COMMAND_PLACE_PYRAMID
 	COMMAND_PLACE_FLOOR
+	COMMAND_PLACE_WALL
 	COMMAND_ROTATE_SHAPE_DIRECT
 	COMMAND_ROTATE_SHAPE_RETROGRADE
 	COMMAND_REMOVE_SHAPE
@@ -106,6 +108,8 @@ func Commands(events []GlfwKeyEvent) []Command {
 				result = append(result, COMMAND_PLACE_PYRAMID)
 			case glfw.KeyF:
 				result = append(result, COMMAND_PLACE_FLOOR)
+			case glfw.KeyR:
+				result = append(result, COMMAND_PLACE_WALL)
 			case glfw.KeyDelete:
 				result = append(result, COMMAND_REMOVE_SHAPE)
 			case glfw.KeyLeftBracket:
@@ -133,11 +137,11 @@ type GlState struct {
 	GlfwKeyEventList *GlfwKeyEventList
 	Programs         glw.Programs
 	P                glm.Matrix4
-	Shapes           [3]glw.Drawable
+	Shapes           [4]glw.Drawable
 }
 
 type ProgramState struct {
-	Gl    GlState     // Highly mutable, inpure.
+	Gl    GlState     // Highly mutable, impure.
 	World world.World // Immutable, pure.
 }
 
@@ -169,6 +173,8 @@ func LevelCommand(level world.Level, player world.Player, command Command) world
 		level.Floors = level.Floors.Set(x, y, world.MakeBaseBuilding(PYRAMID_ID))
 	case COMMAND_PLACE_FLOOR:
 		level.Floors = level.Floors.Set(x, y, world.MakeOrientedBuilding(FLOOR_ID, 0))
+	case COMMAND_PLACE_WALL:
+		level.Floors = level.Floors.Set(x, y, world.MakeBaseBuilding(WALL_ID))
 	case COMMAND_ROTATE_SHAPE_DIRECT, COMMAND_ROTATE_SHAPE_RETROGRADE:
 		{
 			var offset int
@@ -260,6 +266,7 @@ func main() {
 	program_state.Gl.Shapes[CUBE_ID] = glw.Cube(program_state.Gl.Programs)
 	program_state.Gl.Shapes[PYRAMID_ID] = glw.Pyramid(program_state.Gl.Programs)
 	program_state.Gl.Shapes[FLOOR_ID] = glw.Floor(program_state.Gl.Programs)
+	program_state.Gl.Shapes[WALL_ID] = glw.Wall(program_state.Gl.Programs)
 	tiles := map[[2]int]world.ModelId{
 		[2]int{0, 4}: CUBE_ID,
 		[2]int{1, 3}: CUBE_ID,
