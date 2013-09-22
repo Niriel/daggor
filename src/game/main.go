@@ -9,7 +9,6 @@ import (
 	"glw"
 	"runtime"
 	"time"
-	"unsafe"
 	"world"
 )
 
@@ -56,188 +55,11 @@ func (self *GlfwKeyEventList) Callback(w *glfw.Window, key glfw.Key, scancode in
 	self.list = append(self.list, event)
 }
 
-type Drawable struct {
-	vao        gl.VertexArray
-	mvp        gl.UniformLocation
-	program    gl.Program
-	n_elements int
-}
-
 const (
 	CUBE_ID = iota
 	PYRAMID_ID
 	FLOOR_ID
 )
-
-func (self *Drawable) Draw(mvp_matrix *[16]float32) {
-	// Bindind the VAO each time is not efficient but
-	// it is correct.
-	self.vao.Bind()
-	self.program.Use()
-	self.mvp.UniformMatrix4f(false, mvp_matrix)
-
-	self.program.Validate()
-	if err := glw.CheckGlError(); err != nil {
-		err.Description = "Program.Validate failed."
-		panic(err)
-	}
-	status := self.program.Get(gl.VALIDATE_STATUS)
-	if err := glw.CheckGlError(); err != nil {
-		err.Description = "Program.Get(VALIDATE_STATUS) failed."
-		panic(err)
-	}
-	if status == gl.FALSE {
-		infolog := self.program.GetInfoLog()
-		gl.GetError() // Clear error flag if infolog derped.
-		panic(fmt.Errorf("Program validation failed. Log: %v", infolog))
-	}
-
-	gl.DrawElements(gl.TRIANGLE_STRIP, self.n_elements, gl.UNSIGNED_BYTE, nil)
-}
-
-func Cube(programs glw.Programs) Drawable {
-	const p = .5 // Plus sign.
-	const m = -p // Minus sign.
-	vertices := [...]gl.GLfloat{
-		m, m, 0,
-		m, m, 1,
-		m, p, 0,
-		m, p, 1,
-		p, m, 0,
-		p, m, 1,
-		p, p, 0,
-		p, p, 1,
-	}
-	// Indices for triangle strip adapted from
-	// http://www.cs.umd.edu/gvil/papers/av_ts.pdf .
-	// I mirrored their cube to have CCW, and I used a natural order to
-	// number the vertices (see above, it's binary code).
-	indices := [...]gl.GLubyte{
-		6, 2, 7, 3, 1, 2, 0, 6, 4, 7, 5, 1, 4, 0,
-	}
-	vao := gl.GenVertexArray()
-	vao.Bind()
-	vbuf := gl.GenBuffer()
-	vbuf.Bind(gl.ARRAY_BUFFER)
-	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.STATIC_DRAW)
-	ebuf := gl.GenBuffer()
-	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
-
-	srefs := glw.ShaderRefs{glw.VSH_POS3, glw.FSH_ZRED}
-	program, err := programs.Serve(srefs)
-	if err != nil {
-		panic(err)
-	}
-
-	program.Use()
-
-	att := program.GetAttribLocation("vpos")
-	att.EnableArray()
-	att.AttribPointer(
-		3,
-		gl.FLOAT,
-		false,
-		0,
-		nil)
-	mvp := program.GetUniformLocation("mvp")
-	vbuf.Unbind(gl.ARRAY_BUFFER)
-	return Drawable{vao, mvp, program, len(indices)}
-}
-
-func Pyramid(programs glw.Programs) Drawable {
-	const p = .5 // Plus sign.
-	const m = -p // Minus sign.
-	vertices := [...]gl.GLfloat{
-		m, m, 0,
-		m, p, 0,
-		p, m, 0,
-		p, p, 0,
-		0, 0, 1,
-	}
-	indices := [...]gl.GLubyte{
-		1, 4, 3, 2, 1, 0, 4, 2,
-	}
-	vao := gl.GenVertexArray()
-	vao.Bind()
-	vbuf := gl.GenBuffer()
-	vbuf.Bind(gl.ARRAY_BUFFER)
-	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.STATIC_DRAW)
-
-	ebuf := gl.GenBuffer()
-	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
-
-	srefs := glw.ShaderRefs{glw.VSH_POS3, glw.FSH_ZGREEN}
-	program, err := programs.Serve(srefs)
-	if err != nil {
-		panic(err)
-	}
-
-	att := program.GetAttribLocation("vpos")
-	att.EnableArray()
-	att.AttribPointer(
-		3,
-		gl.FLOAT,
-		false,
-		0,
-		nil)
-	mvp := program.GetUniformLocation("mvp")
-	vbuf.Unbind(gl.ARRAY_BUFFER)
-	return Drawable{vao, mvp, program, len(indices)}
-}
-
-func Floor(programs glw.Programs) Drawable {
-	const p = .5 // Plus sign.
-	const m = -p // Minus sign.
-	vertices := [...]gl.GLfloat{
-		// x y z r v b
-		m, m, 0, .1, .1, .5,
-		m, p, 0, .1, .1, .5,
-		p, m, 0, 0, 1, 0,
-		p, p, 0, 1, 0, 0,
-	}
-	indices := [...]gl.GLubyte{
-		0, 2, 1, 3,
-	}
-	vao := gl.GenVertexArray()
-	vao.Bind()
-
-	vbuf := gl.GenBuffer()
-	vbuf.Bind(gl.ARRAY_BUFFER)
-	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.STATIC_DRAW)
-
-	ebuf := gl.GenBuffer()
-	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
-
-	srefs := glw.ShaderRefs{glw.VSH_COL3, glw.FSH_VCOL}
-	program, err := programs.Serve(srefs)
-	if err != nil {
-		panic(err)
-	}
-
-	att := program.GetAttribLocation("vpos")
-	att.EnableArray()
-	att.AttribPointer(
-		3,
-		gl.FLOAT,
-		false,
-		6*4,
-		uintptr(0))
-	att = program.GetAttribLocation("vcol")
-	att.EnableArray()
-	att.AttribPointer(
-		3,
-		gl.FLOAT,
-		false,
-		6*4,
-		uintptr(3*4))
-	mvp := program.GetUniformLocation("mvp")
-
-	vbuf.Unbind(gl.ARRAY_BUFFER)
-	return Drawable{vao, mvp, program, len(indices)}
-}
 
 type Command int
 
@@ -311,7 +133,7 @@ type GlState struct {
 	GlfwKeyEventList *GlfwKeyEventList
 	Programs         glw.Programs
 	P                glm.Matrix4
-	Shapes           [3]Drawable
+	Shapes           [3]glw.Drawable
 }
 
 type ProgramState struct {
@@ -435,9 +257,9 @@ func main() {
 
 	program_state.Gl.Programs = glw.MakePrograms()
 
-	program_state.Gl.Shapes[CUBE_ID] = Cube(program_state.Gl.Programs)
-	program_state.Gl.Shapes[PYRAMID_ID] = Pyramid(program_state.Gl.Programs)
-	program_state.Gl.Shapes[FLOOR_ID] = Floor(program_state.Gl.Programs)
+	program_state.Gl.Shapes[CUBE_ID] = glw.Cube(program_state.Gl.Programs)
+	program_state.Gl.Shapes[PYRAMID_ID] = glw.Pyramid(program_state.Gl.Programs)
+	program_state.Gl.Shapes[FLOOR_ID] = glw.Floor(program_state.Gl.Programs)
 	tiles := map[[2]int]world.ModelId{
 		[2]int{0, 4}: CUBE_ID,
 		[2]int{1, 3}: CUBE_ID,
