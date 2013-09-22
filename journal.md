@@ -300,3 +300,5 @@ Columns are orientable buildings.  By the way, if the artist wishes to place a
 column in a middle of a tile for some reason, he can, it's just a prop on a tile
 like any other, but it is not what we technically call column inside the engine.
 
+Kay, ceilings done.  Loads of copy and paste.
+

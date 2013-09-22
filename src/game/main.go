@@ -60,6 +60,8 @@ const (
 	PYRAMID_ID
 	FLOOR_ID
 	WALL_ID
+	COLUMN_ID
+	CEILING_ID
 )
 
 type Command int
@@ -71,14 +73,20 @@ const (
 	COMMAND_STRAFE_RIGHT
 	COMMAND_TURN_LEFT
 	COMMAND_TURN_RIGHT
-	COMMAND_PLACE_CUBE
-	COMMAND_PLACE_PYRAMID
 	COMMAND_PLACE_FLOOR
+	COMMAND_PLACE_CEILING
 	COMMAND_PLACE_WALL
-	COMMAND_ROTATE_SHAPE_DIRECT
-	COMMAND_ROTATE_SHAPE_RETROGRADE
-	COMMAND_REMOVE_SHAPE
+	COMMAND_PLACE_COLUMN
+	COMMAND_REMOVE_FLOOR
+	COMMAND_REMOVE_CEILING
 	COMMAND_REMOVE_WALL
+	COMMAND_REMOVE_COLUMN
+	COMMAND_ROTATE_FLOOR_DIRECT
+	COMMAND_ROTATE_FLOOR_RETROGRADE
+	COMMAND_ROTATE_CEILING_DIRECT
+	COMMAND_ROTATE_CEILING_RETROGRADE
+	COMMAND_ROTATE_COLUMN_DIRECT
+	COMMAND_ROTATE_COLUMN_RETROGRADE
 	COMMAND_SAVE
 	COMMAND_LOAD
 )
@@ -103,22 +111,42 @@ func Commands(events []GlfwKeyEvent) []Command {
 				result = append(result, COMMAND_TURN_LEFT)
 			case glfw.KeyE:
 				result = append(result, COMMAND_TURN_RIGHT)
-			case glfw.KeyC:
-				result = append(result, COMMAND_PLACE_CUBE)
-			case glfw.KeyP:
-				result = append(result, COMMAND_PLACE_PYRAMID)
 			case glfw.KeyF:
-				result = append(result, COMMAND_PLACE_FLOOR)
+				if event.mods&glfw.ModShift == 0 {
+					result = append(result, COMMAND_PLACE_FLOOR)
+				} else {
+					result = append(result, COMMAND_REMOVE_FLOOR)
+				}
+			case glfw.KeyC:
+				if event.mods&glfw.ModShift == 0 {
+					result = append(result, COMMAND_PLACE_CEILING)
+				} else {
+					result = append(result, COMMAND_REMOVE_CEILING)
+				}
 			case glfw.KeyR:
-				result = append(result, COMMAND_PLACE_WALL)
-			case glfw.KeyDelete:
-				result = append(result, COMMAND_REMOVE_SHAPE)
-			case glfw.KeyBackspace:
-				result = append(result, COMMAND_REMOVE_WALL)
+				if event.mods&glfw.ModShift == 0 {
+					result = append(result, COMMAND_PLACE_WALL)
+				} else {
+					result = append(result, COMMAND_REMOVE_WALL)
+				}
+			case glfw.KeyK:
+				if event.mods&glfw.ModShift == 0 {
+					result = append(result, COMMAND_PLACE_COLUMN)
+				} else {
+					result = append(result, COMMAND_REMOVE_COLUMN)
+				}
 			case glfw.KeyLeftBracket:
-				result = append(result, COMMAND_ROTATE_SHAPE_DIRECT)
+				result = append(result, COMMAND_ROTATE_CEILING_DIRECT)
 			case glfw.KeyRightBracket:
-				result = append(result, COMMAND_ROTATE_SHAPE_RETROGRADE)
+				result = append(result, COMMAND_ROTATE_CEILING_RETROGRADE)
+			case glfw.KeySemicolon:
+				result = append(result, COMMAND_ROTATE_COLUMN_DIRECT)
+			case glfw.KeyApostrophe:
+				result = append(result, COMMAND_ROTATE_COLUMN_RETROGRADE)
+			case glfw.KeyPeriod:
+				result = append(result, COMMAND_ROTATE_FLOOR_DIRECT)
+			case glfw.KeySlash:
+				result = append(result, COMMAND_ROTATE_FLOOR_RETROGRADE)
 			case glfw.KeyF4:
 				result = append(result, COMMAND_SAVE)
 			case glfw.KeyF5:
@@ -140,7 +168,7 @@ type GlState struct {
 	GlfwKeyEventList *GlfwKeyEventList
 	Programs         glw.Programs
 	P                glm.Matrix4
-	Shapes           [4]glw.Drawable
+	Shapes           [6]glw.Drawable
 }
 
 type ProgramState struct {
@@ -172,12 +200,10 @@ func LevelCommand(level world.Level, player world.Player, command Command) world
 	there := here.Forward()
 	x, y := world.Coord(there.X), world.Coord(there.Y)
 	switch command {
-	case COMMAND_PLACE_CUBE:
-		level.Floors = level.Floors.Set(x, y, world.MakeBaseBuilding(CUBE_ID))
-	case COMMAND_PLACE_PYRAMID:
-		level.Floors = level.Floors.Set(x, y, world.MakeBaseBuilding(PYRAMID_ID))
 	case COMMAND_PLACE_FLOOR:
 		level.Floors = level.Floors.Set(x, y, world.MakeOrientedBuilding(FLOOR_ID, 0))
+	case COMMAND_PLACE_CEILING:
+		level.Ceilings = level.Ceilings.Set(x, y, world.MakeOrientedBuilding(CEILING_ID, 0))
 	case COMMAND_PLACE_WALL:
 		{
 			// If the player faces North, then the wall must face South in order
@@ -185,10 +211,12 @@ func LevelCommand(level world.Level, player world.Player, command Command) world
 			facing := (player.Pos.F + 2) % 4
 			level.Walls[facing] = level.Walls[facing].Set(here_x, here_y, world.MakeBaseBuilding(WALL_ID))
 		}
-	case COMMAND_ROTATE_SHAPE_DIRECT, COMMAND_ROTATE_SHAPE_RETROGRADE:
+	case COMMAND_PLACE_COLUMN:
+		level.Columns = level.Columns.Set(x, y, world.MakeOrientedBuilding(COLUMN_ID, 0))
+	case COMMAND_ROTATE_FLOOR_DIRECT, COMMAND_ROTATE_FLOOR_RETROGRADE:
 		{
 			var offset int
-			if command == COMMAND_ROTATE_SHAPE_DIRECT {
+			if command == COMMAND_ROTATE_FLOOR_DIRECT {
 				offset = 1
 			} else {
 				offset = 3
@@ -204,8 +232,50 @@ func LevelCommand(level world.Level, player world.Player, command Command) world
 				fmt.Println("You cannot rotate that.")
 			}
 		}
-	case COMMAND_REMOVE_SHAPE:
+	case COMMAND_ROTATE_COLUMN_DIRECT, COMMAND_ROTATE_COLUMN_RETROGRADE:
+		{
+			var offset int
+			if command == COMMAND_ROTATE_COLUMN_DIRECT {
+				offset = 1
+			} else {
+				offset = 3
+				// Equivalent to -1 with modulo 4.
+				// Because Go's modulo is stupid.
+			}
+			column := level.Columns[world.Location{X: x, Y: y}]
+			orientable, ok := column.(world.OrientedBuilding)
+			if ok {
+				orientable.Facing = (orientable.Facing + offset) % 4
+				level.Columns = level.Columns.Set(x, y, orientable)
+			} else {
+				fmt.Println("You cannot rotate that.")
+			}
+		}
+	case COMMAND_ROTATE_CEILING_DIRECT, COMMAND_ROTATE_CEILING_RETROGRADE:
+		{
+			var offset int
+			if command == COMMAND_ROTATE_CEILING_DIRECT {
+				offset = 1
+			} else {
+				offset = 3
+				// Equivalent to -1 with modulo 4.
+				// Because Go's modulo is stupid.
+			}
+			ceiling := level.Ceilings[world.Location{X: x, Y: y}]
+			orientable, ok := ceiling.(world.OrientedBuilding)
+			if ok {
+				orientable.Facing = (orientable.Facing + offset) % 4
+				level.Ceilings = level.Ceilings.Set(x, y, orientable)
+			} else {
+				fmt.Println("You cannot rotate that.")
+			}
+		}
+	case COMMAND_REMOVE_FLOOR:
 		level.Floors = level.Floors.Delete(x, y)
+	case COMMAND_REMOVE_COLUMN:
+		level.Columns = level.Columns.Delete(x, y)
+	case COMMAND_REMOVE_CEILING:
+		level.Ceilings = level.Ceilings.Delete(x, y)
 	case COMMAND_REMOVE_WALL:
 		{
 			// If the player faces North, then the wall must face South in order
@@ -226,7 +296,7 @@ func NewProgramState(program_state ProgramState, commands []Command) ProgramStat
 		switch {
 		case command <= COMMAND_TURN_RIGHT:
 			program_state.World.Player = PlayerCommand(program_state.World.Player, command)
-		case command <= COMMAND_REMOVE_WALL:
+		case command < COMMAND_SAVE:
 			program_state.World.Level = LevelCommand(program_state.World.Level, program_state.World.Player, command)
 		case command == COMMAND_SAVE:
 			err := program_state.World.Save()
@@ -285,19 +355,8 @@ func main() {
 	program_state.Gl.Shapes[PYRAMID_ID] = glw.Pyramid(program_state.Gl.Programs)
 	program_state.Gl.Shapes[FLOOR_ID] = glw.Floor(program_state.Gl.Programs)
 	program_state.Gl.Shapes[WALL_ID] = glw.Wall(program_state.Gl.Programs)
-	tiles := map[[2]int]world.ModelId{
-		[2]int{0, 4}: CUBE_ID,
-		[2]int{1, 3}: CUBE_ID,
-		[2]int{0, 3}: PYRAMID_ID,
-		[2]int{0, 5}: CUBE_ID,
-		[2]int{1, 6}: PYRAMID_ID,
-		[2]int{2, 2}: PYRAMID_ID,
-		[2]int{7, 3}: CUBE_ID,
-	}
-	for coords, floor := range tiles {
-		x, y := world.Coord(coords[0]), world.Coord(coords[1])
-		program_state.World.Level.Floors = program_state.World.Level.Floors.Set(x, y, world.MakeBaseBuilding(floor))
-	}
+	program_state.Gl.Shapes[COLUMN_ID] = glw.Column(program_state.Gl.Programs)
+	program_state.Gl.Shapes[CEILING_ID] = glw.Ceiling(program_state.Gl.Programs)
 
 	// I do not like the default reference frame of OpenGl.
 	// By default, we look in the direction -z, and y points up.
@@ -377,6 +436,21 @@ func Render(program_state ProgramState) {
 		mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
 		program_state.Gl.Shapes[floor.Model()].Draw(&mvp)
 	}
+	for coords, ceiling := range program_state.World.Level.Ceilings {
+		// The default model matrix only needs a translation.
+		m := glm.Vector3{float64(coords.X), float64(coords.Y), 0}.Translation()
+		switch ceiling.(type) {
+		case world.OrientedBuilding:
+			{
+				// But Oriented buildig have a rotation as well.
+				facing := ceiling.(world.OrientedBuilding).Facing
+				R := glm.RotZ(float64(90 * facing))
+				m = m.Mult(R)
+			}
+		}
+		mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
+		program_state.Gl.Shapes[ceiling.Model()].Draw(&mvp)
+	}
 	for facing := 0; facing < 4; facing++ {
 		R := glm.RotZ(float64(90 * facing))
 		for coords, wall := range program_state.World.Level.Walls[facing] {
@@ -385,5 +459,20 @@ func Render(program_state ProgramState) {
 			mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
 			program_state.Gl.Shapes[wall.Model()].Draw(&mvp)
 		}
+	}
+	for coords, column := range program_state.World.Level.Columns {
+		// The default model matrix only needs a translation.
+		m := glm.Vector3{float64(coords.X) - .5, float64(coords.Y) - .5, 0}.Translation()
+		switch column.(type) {
+		case world.OrientedBuilding:
+			{
+				// But Oriented buildig have a rotation as well.
+				facing := column.(world.OrientedBuilding).Facing
+				R := glm.RotZ(float64(90 * facing))
+				m = m.Mult(R)
+			}
+		}
+		mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
+		program_state.Gl.Shapes[column.Model()].Draw(&mvp)
 	}
 }
