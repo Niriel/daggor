@@ -324,8 +324,8 @@ func main() {
 
 	glfw.WindowHint(glfw.ContextVersionMajor, 3)
 	glfw.WindowHint(glfw.ContextVersionMinor, 3)
-	glfw.WindowHint(glfw.SrgbCapable, 1)
-	glfw.WindowHint(glfw.Resizable, 0)
+	glfw.WindowHint(glfw.SrgbCapable, glfw.True)
+	glfw.WindowHint(glfw.Resizable, glfw.False)
 	program_state.Gl.Window, err = glfw.CreateWindow(640, 480, "Daggor", nil, nil)
 	if err != nil {
 		panic(err)
