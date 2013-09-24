@@ -302,3 +302,45 @@ like any other, but it is not what we technically call column inside the engine.
 
 Kay, ceilings done.  Loads of copy and paste.
 
+Collision, passability of tiles.
+--------------------------------
+
+I want to include collisions.  This is a requirement for pathfinding, which is
+a requirement for IA, which is a requirement for creatures.
+
+There are three sources of collisions in the landscape: floor, walls, objects
+on the floor.  Collision on the floor may be a bit weird, but it merely means
+that you are not allowed to walk over a pit, or over lava, this kind of things.
+Maybe in the future I will differentiate between flying/swimming/walking
+creatures, but let us forget it for now.  Some floors are unpassable.
+
+Regarding the walls, it is obvious.  Some walls block, some do not.  Remember
+that each tile is separated by two walls, this allows to make one-way walls.
+
+As for the object placed on the floor, these are not implemented yet.  But you
+can imagine massive columns, statues, big furniture.
+
+Creatures should also block passage.
+
+So, when issuing a command such as "Go forward", we must first check if is
+possible to actually do so.  Going from a tile to a neighboring tile requires
+that the floor of the neighboring tile is passable, and the wall of the current
+tile leading to the neighboring tile is either absent or passable.
+
+How do we deal with tiles that have no floor?  It is up to us.  I chose that if
+there is no floor, then the tile is not passable.
+
+Finally, I need a flag somewhere which enables to override all the passability
+tests.  This is required for tests, debug and level design.  This must be
+attached to the player-controlled creature only, otherwise all the creatures
+will suddenly be able to walk through everything as soon as noclip mode is
+activated.
+
+Now, I can go two ways here.  I can set a `passable` flag on each tile, or I can
+set a `passable` flag on each TYPE of tile.  For example, I can say that "lava
+is unpassable", and then every time I put some lava it inherits the
+impassability.  Or I totally decouple the lava look from its effects, and let
+the level designer make sure that its level is consistent.  This is after all
+the way I chose when I decided that both faces of a wall are totally distinct
+objects.  I want to continue with the most free solution, and make rules an
+optional and higher level abstraction.

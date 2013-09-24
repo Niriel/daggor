@@ -176,20 +176,60 @@ type ProgramState struct {
 	World world.World // Immutable, pure.
 }
 
-func PlayerCommand(player world.Player, command Command) world.Player {
+func MaybeMove(level world.Level, position world.Position, rel_dir int) (world.Position, bool) {
+	wall_passable := true   // By default, no wall is good.
+	floor_passable := false // By default, no floor is bad.
+	// Direction of the movement relative to facing.
+	direction := (position.F + rel_dir) % 4
+	// Western walls face East.
+	wall_facing := (direction + 2) % 4
+
+	building, ok := level.Walls[wall_facing].Get(position.X, position.Y)
+	if ok {
+		wall_passable = building.(world.Wall).IsPassable()
+	}
+
+	new_pos := position.SetF(direction).Forward()
+	building, ok = level.Floors.Get(new_pos.X, new_pos.Y)
+	if ok {
+		floor_passable = building.(world.Floor).IsPassable()
+	}
+	fmt.Println(wall_passable, floor_passable)
+
+	if wall_passable && floor_passable {
+		return new_pos.SetF(position.F), true
+	}
+	return position, false
+}
+
+func PlayerCommand(level world.Level, player world.Player, command Command) world.Player {
 	switch command {
 	case COMMAND_TURN_LEFT:
 		player.Pos = player.Pos.TurnLeft()
 	case COMMAND_TURN_RIGHT:
 		player.Pos = player.Pos.TurnRight()
-	case COMMAND_BACKWARD:
-		player.Pos = player.Pos.Backward()
-	case COMMAND_FORWARD:
-		player.Pos = player.Pos.Forward()
-	case COMMAND_STRAFE_LEFT:
-		player.Pos = player.Pos.StrafeLeft()
-	case COMMAND_STRAFE_RIGHT:
-		player.Pos = player.Pos.StrafeRight()
+	default:
+		{
+			var rel_dir int
+			switch command {
+			case COMMAND_FORWARD:
+				rel_dir = 0
+			case COMMAND_STRAFE_LEFT:
+				rel_dir = 1
+			case COMMAND_BACKWARD:
+				rel_dir = 2
+			case COMMAND_STRAFE_RIGHT:
+				rel_dir = 3
+			default:
+				return player
+			}
+			new_pos, ok := MaybeMove(level, player.Pos, rel_dir)
+			if ok {
+				player.Pos = new_pos
+			} else {
+				fmt.Println("You cannot go that way.")
+			}
+		}
 	}
 	return player
 }
@@ -201,7 +241,8 @@ func LevelCommand(level world.Level, player world.Player, command Command) world
 	x, y := world.Coord(there.X), world.Coord(there.Y)
 	switch command {
 	case COMMAND_PLACE_FLOOR:
-		level.Floors = level.Floors.Set(x, y, world.MakeOrientedBuilding(FLOOR_ID, 0))
+		floor := world.MakeFloor(FLOOR_ID, 0, true)
+		level.Floors = level.Floors.Set(x, y, floor)
 	case COMMAND_PLACE_CEILING:
 		level.Ceilings = level.Ceilings.Set(x, y, world.MakeOrientedBuilding(CEILING_ID, 0))
 	case COMMAND_PLACE_WALL:
@@ -209,7 +250,8 @@ func LevelCommand(level world.Level, player world.Player, command Command) world
 			// If the player faces North, then the wall must face South in order
 			// to face the player.
 			facing := (player.Pos.F + 2) % 4
-			level.Walls[facing] = level.Walls[facing].Set(here_x, here_y, world.MakeBaseBuilding(WALL_ID))
+			wall := world.MakeWall(WALL_ID, false)
+			level.Walls[facing] = level.Walls[facing].Set(here_x, here_y, wall)
 		}
 	case COMMAND_PLACE_COLUMN:
 		level.Columns = level.Columns.Set(x, y, world.MakeOrientedBuilding(COLUMN_ID, 0))
@@ -295,7 +337,7 @@ func NewProgramState(program_state ProgramState, commands []Command) ProgramStat
 	for _, command := range commands {
 		switch {
 		case command <= COMMAND_TURN_RIGHT:
-			program_state.World.Player = PlayerCommand(program_state.World.Player, command)
+			program_state.World.Player = PlayerCommand(program_state.World.Level, program_state.World.Player, command)
 		case command < COMMAND_SAVE:
 			program_state.World.Level = LevelCommand(program_state.World.Level, program_state.World.Player, command)
 		case command == COMMAND_SAVE:
@@ -343,10 +385,20 @@ func main() {
 	// For some reason, here, the OpenGL error flag for me contains "Invalid enum".
 	// This is weird since I have not done anything yet.  I imagine that something
 	// goes wrong in gl.Init.  Reading the error flag clears it, so I do it.
+	// Here's the reason:
+	//     https://github.com/go-gl/glfw3/issues/50
+	// Maybe I should not even ask for a core profile anyway.
+	// What are the advantages are asking for a core profile?
 	err = glw.CheckGlError()
 	if err != nil {
 		err.(*glw.GlError).Description = "OpenGL has this error right after init for some reason."
 		fmt.Println(err)
+	}
+	major := program_state.Gl.Window.GetAttribute(glfw.ContextVersionMajor)
+	minor := program_state.Gl.Window.GetAttribute(glfw.ContextVersionMinor)
+	fmt.Printf("OpenGL version %v.%v.\n", major, minor)
+	if (major < 3) || (major == 3 && minor < 3) {
+		panic("OpenGL version 3.3 required, your video card/driver does not seem to support it.")
 	}
 
 	program_state.Gl.Programs = glw.MakePrograms()

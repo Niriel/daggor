@@ -10,13 +10,24 @@ func init() {
 	// interfaces.
 	gob.Register(MakeBaseBuilding(0))
 	gob.Register(MakeOrientedBuilding(0, 0))
+	gob.Register(MakeFloor(0, 0, false))
+	gob.Register(MakeWall(0, false))
 }
 
 type Building interface {
 	Model() ModelId
 }
 
+type MaybePassableI interface {
+	IsPassable() bool // Only Floors and Walls need this, not columns and ceiling.
+}
+
 type BaseBuilding struct {
+	// Underscore means that this field is public but should not be used.
+	// Please use the Model() function to read it, and do NOT change it.
+	// It is public only because Gob requires it.  I may spend time writing
+	// a GobEncoder later to hide this field again, but I do not want to
+	// spend time maintaining code that is still so likely to change.
 	Model_ ModelId
 }
 
@@ -25,12 +36,45 @@ type OrientedBuilding struct {
 	Facing int
 }
 
+type MaybePassable struct {
+	Passable_ bool
+}
+
+func (self MaybePassable) IsPassable() bool {
+	return self.Passable_
+}
+
+type Floor struct {
+	OrientedBuilding
+	MaybePassable
+}
+
+type Wall struct {
+	BaseBuilding
+	MaybePassable
+}
+
 func MakeBaseBuilding(model ModelId) BaseBuilding {
 	return BaseBuilding{Model_: model}
 }
 
 func (self BaseBuilding) Model() ModelId {
 	return self.Model_
+}
+
+func MakeFloor(model ModelId, facing int, passable bool) Floor {
+	var floor Floor
+	floor.Model_ = model
+	floor.Facing = facing
+	floor.Passable_ = passable
+	return floor
+}
+
+func MakeWall(model ModelId, passable bool) Wall {
+	var wall Wall
+	wall.Model_ = model
+	wall.Passable_ = passable
+	return wall
 }
 
 func MakeOrientedBuilding(model ModelId, facing int) OrientedBuilding {

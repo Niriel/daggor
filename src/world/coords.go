@@ -11,6 +11,21 @@ type Position struct {
 	F int // int sucks, I should do a Facing arithmetic.
 }
 
+func (self Location) ToPosition(facing int) Position {
+	var position Position
+	position.X = self.X
+	position.Y = self.Y
+	position.F = facing
+	return position
+}
+
+func (self Position) ToLocation() Location {
+	var location Location
+	location.X = self.X
+	location.Y = self.Y
+	return location
+}
+
 var SIN = [...]Coord{0, 1, 0, -1}
 var COS = [...]Coord{1, 0, -1, 0}
 
@@ -44,5 +59,27 @@ func (self Position) StrafeLeft() Position {
 func (self Position) StrafeRight() Position {
 	self.X += SIN[self.F]
 	self.Y -= COS[self.F]
+	return self
+}
+
+func (self Location) SetX(x Coord) Location {
+	self.X = x
+	return self
+}
+func (self Location) SetY(y Coord) Location {
+	self.Y = y
+	return self
+}
+
+func (self Position) SetX(x Coord) Position {
+	self.X = x
+	return self
+}
+func (self Position) SetY(y Coord) Position {
+	self.Y = y
+	return self
+}
+func (self Position) SetF(f int) Position {
+	self.F = f
 	return self
 }
