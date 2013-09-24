@@ -55,7 +55,7 @@ func Cube(programs Programs) Drawable {
 		nil)
 	mvp := program.GetUniformLocation("mvp")
 	vbuf.Unbind(gl.ARRAY_BUFFER)
-	return Drawable{vao, mvp, program, len(indices)}
+	return Drawable{vao, mvp, srefs, len(indices)}
 }
 
 func Pyramid(programs Programs) Drawable {
@@ -97,7 +97,7 @@ func Pyramid(programs Programs) Drawable {
 		nil)
 	mvp := program.GetUniformLocation("mvp")
 	vbuf.Unbind(gl.ARRAY_BUFFER)
-	return Drawable{vao, mvp, program, len(indices)}
+	return Drawable{vao, mvp, srefs, len(indices)}
 }
 
 func Floor(programs Programs) Drawable {
@@ -149,7 +149,7 @@ func Floor(programs Programs) Drawable {
 	mvp := program.GetUniformLocation("mvp")
 
 	vbuf.Unbind(gl.ARRAY_BUFFER)
-	return Drawable{vao, mvp, program, len(indices)}
+	return Drawable{vao, mvp, srefs, len(indices)}
 }
 
 func Ceiling(programs Programs) Drawable {
@@ -201,7 +201,7 @@ func Ceiling(programs Programs) Drawable {
 	mvp := program.GetUniformLocation("mvp")
 
 	vbuf.Unbind(gl.ARRAY_BUFFER)
-	return Drawable{vao, mvp, program, len(indices)}
+	return Drawable{vao, mvp, srefs, len(indices)}
 }
 
 func Wall(programs Programs) Drawable {
@@ -256,7 +256,7 @@ func Wall(programs Programs) Drawable {
 	mvp := program.GetUniformLocation("mvp")
 
 	vbuf.Unbind(gl.ARRAY_BUFFER)
-	return Drawable{vao, mvp, program, len(indices)}
+	return Drawable{vao, mvp, srefs, len(indices)}
 }
 
 func Column(programs Programs) Drawable {
@@ -306,5 +306,5 @@ func Column(programs Programs) Drawable {
 		nil)
 	mvp := program.GetUniformLocation("mvp")
 	vbuf.Unbind(gl.ARRAY_BUFFER)
-	return Drawable{vao, mvp, program, len(indices)}
+	return Drawable{vao, mvp, srefs, len(indices)}
 }

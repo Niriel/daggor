@@ -434,7 +434,7 @@ func Render(program_state ProgramState) {
 			}
 		}
 		mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
-		program_state.Gl.Shapes[floor.Model()].Draw(&mvp)
+		program_state.Gl.Shapes[floor.Model()].Draw(program_state.Gl.Programs, &mvp)
 	}
 	for coords, ceiling := range program_state.World.Level.Ceilings {
 		// The default model matrix only needs a translation.
@@ -449,7 +449,7 @@ func Render(program_state ProgramState) {
 			}
 		}
 		mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
-		program_state.Gl.Shapes[ceiling.Model()].Draw(&mvp)
+		program_state.Gl.Shapes[ceiling.Model()].Draw(program_state.Gl.Programs, &mvp)
 	}
 	for facing := 0; facing < 4; facing++ {
 		R := glm.RotZ(float64(90 * facing))
@@ -457,7 +457,7 @@ func Render(program_state ProgramState) {
 			m := glm.Vector3{float64(coords.X), float64(coords.Y), 0}.Translation()
 			m = m.Mult(R)
 			mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
-			program_state.Gl.Shapes[wall.Model()].Draw(&mvp)
+			program_state.Gl.Shapes[wall.Model()].Draw(program_state.Gl.Programs, &mvp)
 		}
 	}
 	for coords, column := range program_state.World.Level.Columns {
@@ -473,6 +473,6 @@ func Render(program_state ProgramState) {
 			}
 		}
 		mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
-		program_state.Gl.Shapes[column.Model()].Draw(&mvp)
+		program_state.Gl.Shapes[column.Model()].Draw(program_state.Gl.Programs, &mvp)
 	}
 }
