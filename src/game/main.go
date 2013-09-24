@@ -159,7 +159,7 @@ func Commands(events []GlfwKeyEvent) []Command {
 
 func ViewMatrix(pos world.Position) glm.Matrix4 {
 	R := glm.RotZ(float64(-90 * pos.F))
-	T := glm.Vector3{float64(-pos.X), float64(-pos.Y), -.6}.Translation()
+	T := glm.Vector3{float64(-pos.X), float64(-pos.Y), -.5}.Translation()
 	return R.Mult(T)
 }
 
