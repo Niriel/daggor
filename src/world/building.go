@@ -18,10 +18,6 @@ type Building interface {
 	Model() ModelId
 }
 
-type MaybePassableI interface {
-	IsPassable() bool // Only Floors and Walls need this, not columns and ceiling.
-}
-
 type BaseBuilding struct {
 	// Underscore means that this field is public but should not be used.
 	// Please use the Model() function to read it, and do NOT change it.

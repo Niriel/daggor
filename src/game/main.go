@@ -194,7 +194,6 @@ func MaybeMove(level world.Level, position world.Position, rel_dir int) (world.P
 	if ok {
 		floor_passable = building.(world.Floor).IsPassable()
 	}
-	fmt.Println(wall_passable, floor_passable)
 
 	if wall_passable && floor_passable {
 		return new_pos.SetF(position.F), true
