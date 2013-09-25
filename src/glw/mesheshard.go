@@ -318,7 +318,7 @@ func DynaPyramid(programs Programs) StreamDrawable {
 	vao.Bind()
 	vbuf := gl.GenBuffer()
 	vbuf.Bind(gl.ARRAY_BUFFER)
-	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.DYNAMIC_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), nil, gl.DYNAMIC_DRAW)
 
 	ebuf := gl.GenBuffer()
 	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
