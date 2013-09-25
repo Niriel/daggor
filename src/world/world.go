@@ -13,6 +13,7 @@ type ModelId uint16
 type World struct {
 	Player Player
 	Level  Level
+	Time   uint64 // Nanoseconds.
 }
 
 func Load() (*World, error) {

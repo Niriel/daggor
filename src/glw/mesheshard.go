@@ -308,3 +308,44 @@ func Column(programs Programs) Drawable {
 	vbuf.Unbind(gl.ARRAY_BUFFER)
 	return Drawable{vao, mvp, srefs, len(indices)}
 }
+
+func DynaPyramid(programs Programs) StreamDrawable {
+	var vertices [5 * 3]gl.GLfloat
+	indices := [...]gl.GLubyte{
+		1, 4, 3, 2, 1, 0, 4, 2,
+	}
+	vao := gl.GenVertexArray()
+	vao.Bind()
+	vbuf := gl.GenBuffer()
+	vbuf.Bind(gl.ARRAY_BUFFER)
+	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.DYNAMIC_DRAW)
+
+	ebuf := gl.GenBuffer()
+	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
+	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
+
+	srefs := ShaderRefs{VSH_POS3, FSH_ZGREEN}
+	program, err := programs.Serve(srefs)
+	if err != nil {
+		panic(err)
+	}
+
+	att := program.GetAttribLocation("vpos")
+	att.EnableArray()
+	att.AttribPointer(
+		3,
+		gl.FLOAT,
+		false,
+		0,
+		nil)
+	mvp := program.GetUniformLocation("mvp")
+	vbuf.Unbind(gl.ARRAY_BUFFER)
+	var result StreamDrawable
+	result.Drawable.vao = vao
+	result.Drawable.mvp = mvp
+	result.Drawable.shaders_refs = srefs
+	result.Drawable.n_elements = len(indices)
+	result.vbo = vbuf
+	result.vbosize = int(unsafe.Sizeof(vertices))
+	return result
+}

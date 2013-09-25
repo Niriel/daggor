@@ -5,4 +5,5 @@ type Level struct {
 	Ceilings Buildings
 	Walls    [4]Buildings // Sorted by facing.
 	Columns  Buildings
+	Dynamic  Dynamic
 }

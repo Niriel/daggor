@@ -169,6 +169,7 @@ type GlState struct {
 	Programs         glw.Programs
 	P                glm.Matrix4
 	Shapes           [6]glw.Drawable
+	DynaPyramid      glw.StreamDrawable
 }
 
 type ProgramState struct {
@@ -408,6 +409,7 @@ func main() {
 	program_state.Gl.Shapes[WALL_ID] = glw.Wall(program_state.Gl.Programs)
 	program_state.Gl.Shapes[COLUMN_ID] = glw.Column(program_state.Gl.Programs)
 	program_state.Gl.Shapes[CEILING_ID] = glw.Ceiling(program_state.Gl.Programs)
+	program_state.Gl.DynaPyramid = glw.DynaPyramid(program_state.Gl.Programs)
 
 	// I do not like the default reference frame of OpenGl.
 	// By default, we look in the direction -z, and y points up.
@@ -425,18 +427,20 @@ func main() {
 	gl.Enable(gl.CULL_FACE)
 	gl.CullFace(gl.BACK)
 	gl.FrontFace(gl.CCW)
+
 	MainLoop(program_state)
 }
 
 func MainLoop(program_state ProgramState) ProgramState {
-	ticker := time.NewTicker(15 * time.Millisecond)
+	const tick_period = 1000000000 / 60
+	ticker := time.NewTicker(tick_period * time.Nanosecond)
 	keep_ticking := true
 	for keep_ticking {
 		select {
 		case _, ok := <-ticker.C:
 			{
 				if ok {
-					program_state, keep_ticking = OnTick(program_state)
+					program_state, keep_ticking = OnTick(program_state, tick_period)
 					if !keep_ticking {
 						fmt.Println("No more ticks.")
 						ticker.Stop()
@@ -451,7 +455,7 @@ func MainLoop(program_state ProgramState) ProgramState {
 	return program_state
 }
 
-func OnTick(program_state ProgramState) (ProgramState, bool) {
+func OnTick(program_state ProgramState, dt uint64) (ProgramState, bool) {
 	glfw.PollEvents()
 	keep_ticking := !program_state.Gl.Window.ShouldClose()
 	if keep_ticking {
@@ -460,6 +464,7 @@ func OnTick(program_state ProgramState) (ProgramState, bool) {
 		// Analyze the inputs, see what they mean.
 		commands := Commands(keys)
 		// Evolve the program one step.
+		program_state.World.Time += dt
 		program_state = NewProgramState(program_state, commands)
 		// Render on screen.
 		Render(program_state)
@@ -526,4 +531,11 @@ func Render(program_state ProgramState) {
 		mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
 		program_state.Gl.Shapes[column.Model()].Draw(program_state.Gl.Programs, &mvp)
 	}
+	// Stupid render of the one dynamic object.
+	dyn := program_state.World.Level.Dynamic
+	m := dyn.ModelMat(program_state.World.Time)
+	mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
+	pyr := program_state.Gl.DynaPyramid
+	pyr.UpdateMesh(dyn.Mesh(program_state.World.Time))
+	pyr.Draw(program_state.Gl.Programs, &mvp)
 }

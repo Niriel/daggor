@@ -344,3 +344,25 @@ the level designer make sure that its level is consistent.  This is after all
 the way I chose when I decided that both faces of a wall are totally distinct
 objects.  I want to continue with the most free solution, and make rules an
 optional and higher level abstraction.
+
+Things that move.
+-----------------
+I am going to add creatures soon.  I want them to show animations.
+I want some things to be able to move around and to change shape/color/texture/
+light-intensity, etc.
+
+Technically, there are two types of things that can change: uniforms and vertex
+data.  Uniforms deal with things like position, rotation, illumination of the
+whole mesh.  Vertex data work at the vertex level.  For example, a torch can
+be implemented with a fixed vertex data but a changing fire texture via a
+uniform.  A creature animation can be implemented as a complete reupload of all
+its vertices.  Actually it is probably possible to do skeletal animation in the
+vertex shader, but I can also just stream vertices.  In any case, it is good to
+have.
+
+I am not sure how things will end up looking, so I am trying a very quick and
+dirty prototype, just to check whether I am understanding the basics.  The world
+is created with one and only one dynamic object in it.  Both its position and
+its vertices are modified each frame.  The dynamic object knows when it was born
+and what time it is now, so it knows how to display itself.
+

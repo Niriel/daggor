@@ -41,3 +41,23 @@ func (self *Drawable) Draw(programs Programs, mvp_matrix *[16]float32) {
 
 	gl.DrawElements(gl.TRIANGLE_STRIP, self.n_elements, gl.UNSIGNED_BYTE, nil)
 }
+
+type StreamDrawable struct {
+	Drawable
+	vbo     gl.Buffer
+	vbosize int
+}
+
+func (self *StreamDrawable) UpdateMesh(mesh []float64) {
+	data := make([]gl.GLfloat, len(mesh), len(mesh))
+	for i, value := range mesh {
+		data[i] = gl.GLfloat(value)
+	}
+	self.vao.Bind()
+	self.vbo.Bind(gl.ARRAY_BUFFER)
+	// I don't know what I'm doing.  Setting the data to nil does some magic.
+	// It is knows as "orphaning".
+	gl.BufferData(gl.ARRAY_BUFFER, self.vbosize, nil, gl.DYNAMIC_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, self.vbosize, &data[0], gl.DYNAMIC_DRAW)
+	self.vbo.Unbind(gl.ARRAY_BUFFER)
+}
