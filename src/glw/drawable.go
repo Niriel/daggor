@@ -6,6 +6,7 @@ import (
 )
 
 type Drawable struct {
+	primitive    gl.GLenum
 	vao          gl.VertexArray
 	mvp          gl.UniformLocation
 	shaders_refs ShaderRefs
@@ -39,7 +40,7 @@ func (self *Drawable) Draw(programs Programs, mvp_matrix *[16]float32) {
 		panic(fmt.Errorf("Program validation failed. Log: %v", infolog))
 	}
 
-	gl.DrawElements(gl.TRIANGLE_STRIP, self.n_elements, gl.UNSIGNED_BYTE, nil)
+	gl.DrawElements(self.primitive, self.n_elements, gl.UNSIGNED_BYTE, nil)
 }
 
 type StreamDrawable struct {
