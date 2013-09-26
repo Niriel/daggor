@@ -350,3 +350,115 @@ func DynaPyramid(programs Programs) StreamDrawable {
 	result.vbosize = int(unsafe.Sizeof(vertices))
 	return result
 }
+
+func Monster(programs Programs) Drawable {
+	const h = .5
+	const w = .2
+	const d = .15
+	const l = w / 2       // left
+	const r = -w / 2      // right
+	const b = -d / 2      // back
+	const f = d / 2       // front
+	const c = h * 4 / 5   // chin height
+	const n = f * 3       // Nose front
+	const N = (h + c) / 2 // Nose height
+	const n_verts = 7     // Number of vertices.
+	const cpv = 6         // Components per vertex.
+	vertices := [n_verts * cpv]gl.GLfloat{
+		b, l, 0, 0.40, 0.20, 0.00,
+		b, r, 0, 0.40, 0.20, 0.00,
+		b, r, h, 0.80, 0.40, 0.00,
+		b, l, h, 0.80, 0.40, 0.00,
+		f, 0, 0, 0.40, 0.20, 0.00,
+		f, 0, c, 0.40, 0.20, 0.00,
+		n, 0, N, 1.00, 0.80, 0.00,
+	}
+	indices := [...]gl.GLubyte{
+		// Bottom.
+		0, 4, 1,
+		// Back.
+		0, 1, 2,
+		0, 2, 3,
+		// Left body.
+		5, 2, 1,
+		5, 1, 4,
+		// Right body.
+		5, 0, 3,
+		5, 4, 0,
+		// Left face.
+		5, 6, 2,
+		// Right face.
+		5, 3, 6,
+		// Top head.
+		2, 6, 3,
+	}
+	vao := gl.GenVertexArray()
+	vao.Bind()
+	vbuf := gl.GenBuffer()
+	vbuf.Bind(gl.ARRAY_BUFFER)
+	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.STATIC_DRAW)
+
+	ebuf := gl.GenBuffer()
+	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
+	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
+
+	srefs := ShaderRefs{VSH_COL3, FSH_VCOL}
+	program, err := programs.Serve(srefs)
+	if err != nil {
+		panic(err)
+	}
+
+	att := program.GetAttribLocation("vpos")
+	if err := CheckGlError(); err != nil {
+		err.Description = "get attrib location 1"
+		panic(err)
+	}
+	att.EnableArray()
+	if err := CheckGlError(); err != nil {
+		err.Description = "enable array 1"
+		panic(err)
+	}
+	att.AttribPointer(
+		3,
+		gl.FLOAT,
+		false,
+		6*4,
+		uintptr(0))
+	if err := CheckGlError(); err != nil {
+		err.Description = "attrib pointer 1"
+		panic(err)
+	}
+	att = program.GetAttribLocation("vcol")
+	if err := CheckGlError(); err != nil {
+		err.Description = "get attrib location 2"
+		panic(err)
+	}
+	att.EnableArray()
+	if err := CheckGlError(); err != nil {
+		err.Description = "enable array 2"
+		panic(err)
+	}
+	att.AttribPointer(
+		3,
+		gl.FLOAT,
+		false,
+		6*4,
+		uintptr(3*4))
+	if err := CheckGlError(); err != nil {
+		err.Description = "attrib pointer 2"
+		panic(err)
+	}
+	mvp := program.GetUniformLocation("mvp")
+	if err := CheckGlError(); err != nil {
+		err.Description = "Get uniform mvp"
+		panic(err)
+	}
+
+	vbuf.Unbind(gl.ARRAY_BUFFER)
+
+	if err := CheckGlError(); err != nil {
+		err.Description = "vbo unbind"
+		panic(err)
+	}
+	return Drawable{gl.TRIANGLES, vao, mvp, srefs, len(indices)}
+}

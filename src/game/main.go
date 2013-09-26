@@ -170,6 +170,7 @@ type GlState struct {
 	P                glm.Matrix4
 	Shapes           [6]glw.Drawable
 	DynaPyramid      glw.StreamDrawable
+	Monster          glw.Drawable
 }
 
 type ProgramState struct {
@@ -410,6 +411,7 @@ func main() {
 	program_state.Gl.Shapes[COLUMN_ID] = glw.Column(program_state.Gl.Programs)
 	program_state.Gl.Shapes[CEILING_ID] = glw.Ceiling(program_state.Gl.Programs)
 	program_state.Gl.DynaPyramid = glw.DynaPyramid(program_state.Gl.Programs)
+	program_state.Gl.Monster = glw.Monster(program_state.Gl.Programs)
 
 	// I do not like the default reference frame of OpenGl.
 	// By default, we look in the direction -z, and y points up.
@@ -538,4 +540,7 @@ func Render(program_state ProgramState) {
 	pyr := program_state.Gl.DynaPyramid
 	pyr.UpdateMesh(dyn.Mesh(program_state.World.Time))
 	pyr.Draw(program_state.Gl.Programs, &mvp)
+	// Draw a monster.
+	mvp = (program_state.Gl.P).Mult(v).Gl()
+	program_state.Gl.Monster.Draw(program_state.Gl.Programs, &mvp)
 }
