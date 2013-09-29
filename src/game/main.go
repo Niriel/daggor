@@ -158,7 +158,7 @@ func Commands(events []GlfwKeyEvent) []Command {
 }
 
 func ViewMatrix(pos world.Position) glm.Matrix4 {
-	R := glm.RotZ(float64(-90 * pos.F))
+	R := glm.RotZ(float64(-90 * pos.F.Value()))
 	T := glm.Vector3{float64(-pos.X), float64(-pos.Y), -.5}.Translation()
 	return R.Mult(T)
 }
@@ -178,20 +178,21 @@ type ProgramState struct {
 	World world.World // Immutable, pure.
 }
 
-func MaybeMove(level world.Level, position world.Position, rel_dir int) (world.Position, bool) {
+func MaybeMove(level world.Level, position world.Position, rel_dir world.RelativeDirection) (world.Position, bool) {
 	wall_passable := true   // By default, no wall is good.
 	floor_passable := false // By default, no floor is bad.
 	// Direction of the movement relative to facing.
-	direction := (position.F + rel_dir) % 4
+	direction := position.F.Add(rel_dir)
 	// Western walls face East.
-	wall_facing := (direction + 2) % 4
+	wall_facing := rel_dir.Add(world.BACK)
+	wall_index := wall_facing.Value()
 
-	building, ok := level.Walls[wall_facing].Get(position.X, position.Y)
+	building, ok := level.Walls[wall_index].Get(position.X, position.Y)
 	if ok {
 		wall_passable = building.(world.Wall).IsPassable()
 	}
 
-	new_pos := position.SetF(direction).Forward()
+	new_pos := position.SetF(direction).MoveForward(1)
 	building, ok = level.Floors.Get(new_pos.X, new_pos.Y)
 	if ok {
 		floor_passable = building.(world.Floor).IsPassable()
@@ -211,16 +212,16 @@ func PlayerCommand(level world.Level, player world.Player, command Command) worl
 		player.Pos = player.Pos.TurnRight()
 	default:
 		{
-			var rel_dir int
+			var rel_dir world.RelativeDirection
 			switch command {
 			case COMMAND_FORWARD:
-				rel_dir = 0
+				rel_dir = world.FRONT
 			case COMMAND_STRAFE_LEFT:
-				rel_dir = 1
+				rel_dir = world.LEFT
 			case COMMAND_BACKWARD:
-				rel_dir = 2
+				rel_dir = world.BACK
 			case COMMAND_STRAFE_RIGHT:
-				rel_dir = 3
+				rel_dir = world.RIGHT
 			default:
 				return player
 			}
@@ -238,7 +239,7 @@ func PlayerCommand(level world.Level, player world.Player, command Command) worl
 func LevelCommand(level world.Level, player world.Player, command Command) world.Level {
 	here := player.Pos
 	here_x, here_y := world.Coord(here.X), world.Coord(here.Y)
-	there := here.Forward()
+	there := here.MoveForward(1)
 	x, y := world.Coord(there.X), world.Coord(there.Y)
 	switch command {
 	case COMMAND_PLACE_FLOOR:
@@ -250,9 +251,10 @@ func LevelCommand(level world.Level, player world.Player, command Command) world
 		{
 			// If the player faces North, then the wall must face South in order
 			// to face the player.
-			facing := (player.Pos.F + 2) % 4
+			facing := player.Pos.F.Add(world.BACK)
+			index := facing.Value()
 			wall := world.MakeWall(WALL_ID, false)
-			level.Walls[facing] = level.Walls[facing].Set(here_x, here_y, wall)
+			level.Walls[index] = level.Walls[index].Set(here_x, here_y, wall)
 		}
 	case COMMAND_PLACE_COLUMN:
 		level.Columns = level.Columns.Set(x, y, world.MakeOrientedBuilding(COLUMN_ID, 0))
@@ -323,9 +325,9 @@ func LevelCommand(level world.Level, player world.Player, command Command) world
 		{
 			// If the player faces North, then the wall must face South in order
 			// to face the player.
-			fmt.Println("wwewew")
-			facing := (player.Pos.F + 2) % 4
-			level.Walls[facing] = level.Walls[facing].Delete(here_x, here_y)
+			facing := player.Pos.F.Add(world.BACK)
+			index := facing.Value()
+			level.Walls[index] = level.Walls[index].Delete(here_x, here_y)
 		}
 	}
 	return level
@@ -430,6 +432,8 @@ func main() {
 	gl.CullFace(gl.BACK)
 	gl.FrontFace(gl.CCW)
 
+	program_state.World.Player.Pos = program_state.World.Player.Pos.SetF(world.EAST)
+
 	MainLoop(program_state)
 }
 
@@ -533,14 +537,14 @@ func Render(program_state ProgramState) {
 		mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
 		program_state.Gl.Shapes[column.Model()].Draw(program_state.Gl.Programs, &mvp)
 	}
-	// Stupid render of the one dynamic object.
-	dyn := program_state.World.Level.Dynamic
-	m := dyn.ModelMat(program_state.World.Time)
-	mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
-	pyr := program_state.Gl.DynaPyramid
-	pyr.UpdateMesh(dyn.Mesh(program_state.World.Time))
-	pyr.Draw(program_state.Gl.Programs, &mvp)
-	// Draw a monster.
-	mvp = (program_state.Gl.P).Mult(v).Gl()
-	program_state.Gl.Monster.Draw(program_state.Gl.Programs, &mvp)
+	//// Stupid render of the one dynamic object.
+	//dyn := program_state.World.Level.Dynamic
+	//m := dyn.ModelMat(program_state.World.Time)
+	//mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
+	//pyr := program_state.Gl.DynaPyramid
+	//pyr.UpdateMesh(dyn.Mesh(program_state.World.Time))
+	//pyr.Draw(program_state.Gl.Programs, &mvp)
+	//// Draw a monster.
+	//mvp = (program_state.Gl.P).Mult(v).Gl()
+	//program_state.Gl.Monster.Draw(program_state.Gl.Programs, &mvp)
 }
