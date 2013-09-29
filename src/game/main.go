@@ -184,7 +184,7 @@ func MaybeMove(level world.Level, position world.Position, rel_dir world.Relativ
 	// Direction of the movement relative to facing.
 	direction := position.F.Add(rel_dir)
 	// Western walls face East.
-	wall_facing := rel_dir.Add(world.BACK)
+	wall_facing := rel_dir.Add(world.BACK())
 	wall_index := wall_facing.Value()
 
 	building, ok := level.Walls[wall_index].Get(position.X, position.Y)
@@ -215,13 +215,13 @@ func PlayerCommand(level world.Level, player world.Player, command Command) worl
 			var rel_dir world.RelativeDirection
 			switch command {
 			case COMMAND_FORWARD:
-				rel_dir = world.FRONT
+				rel_dir = world.FRONT()
 			case COMMAND_STRAFE_LEFT:
-				rel_dir = world.LEFT
+				rel_dir = world.LEFT()
 			case COMMAND_BACKWARD:
-				rel_dir = world.BACK
+				rel_dir = world.BACK()
 			case COMMAND_STRAFE_RIGHT:
-				rel_dir = world.RIGHT
+				rel_dir = world.RIGHT()
 			default:
 				return player
 			}
@@ -251,7 +251,7 @@ func LevelCommand(level world.Level, player world.Player, command Command) world
 		{
 			// If the player faces North, then the wall must face South in order
 			// to face the player.
-			facing := player.Pos.F.Add(world.BACK)
+			facing := player.Pos.F.Add(world.BACK())
 			index := facing.Value()
 			wall := world.MakeWall(WALL_ID, false)
 			level.Walls[index] = level.Walls[index].Set(here_x, here_y, wall)
@@ -325,7 +325,7 @@ func LevelCommand(level world.Level, player world.Player, command Command) world
 		{
 			// If the player faces North, then the wall must face South in order
 			// to face the player.
-			facing := player.Pos.F.Add(world.BACK)
+			facing := player.Pos.F.Add(world.BACK())
 			index := facing.Value()
 			level.Walls[index] = level.Walls[index].Delete(here_x, here_y)
 		}
@@ -432,7 +432,7 @@ func main() {
 	gl.CullFace(gl.BACK)
 	gl.FrontFace(gl.CCW)
 
-	program_state.World.Player.Pos = program_state.World.Player.Pos.SetF(world.EAST)
+	program_state.World.Player.Pos = program_state.World.Player.Pos.SetF(world.EAST())
 
 	MainLoop(program_state)
 }

@@ -24,50 +24,60 @@ type relativeDirection struct {
 	value int
 }
 
-// Although the following values are not constant, please do not change them.
-// The user could do something like EAST, NORTH = NORTH, EAST and mess up the whole
-// thing.  Just don't.
-
 // Absolute directions.
-var EAST = absoluteDirection{0}
-var NORTH = absoluteDirection{1}
-var WEST = absoluteDirection{2}
-var SOUTH = absoluteDirection{3}
+func EAST() absoluteDirection  { return absoluteDirection{0} }
+func NORTH() absoluteDirection { return absoluteDirection{1} }
+func WEST() absoluteDirection  { return absoluteDirection{2} }
+func SOUTH() absoluteDirection { return absoluteDirection{3} }
 
 // Relative directions.
-var FRONT = relativeDirection{0}
-var LEFT = relativeDirection{1}
-var BACK = relativeDirection{2}
-var RIGHT = relativeDirection{3}
+func FRONT() relativeDirection { return relativeDirection{0} }
+func LEFT() relativeDirection  { return relativeDirection{1} }
+func BACK() relativeDirection  { return relativeDirection{2} }
+func RIGHT() relativeDirection { return relativeDirection{3} }
 
 // The rotation arithmetics is abstracted behind these two interfaces.  You can
 // combine relative directions together.  For example, left of left is back.
 // Back of right is left. Note that this is commutative: right of back is left too.
 type RelativeDirection interface {
-	// This `concrete` unexported field does two things.
-	// First, it prevents anybody else from creating a new type that satisfies
-	// this RelativeDirection interface, since the relativeDirection type is
-	// private.  Then, it is handy in the Add method.  The name "concrete" refers
-	// to the fact that this function returns a variable of the concrete type
-	// implementing the interface.
+	// This `concrete` unexported field prevents anybody else from creating a new
+	// type that satisfies this RelativeDirection interface, since the
+	// relativeDirection type is private.  The name "concrete" refers to the fact
+	// that this function returns a variable of the concrete type implementing the
+	// interface.
 	concrete() relativeDirection
+	// Returns 0, 1, 2 or 3 for FRONT, LEFT, BACK or RIGHT.
 	Value() int
+	// Combines two relative directions together.
 	Add(rel RelativeDirection) RelativeDirection
 }
 
 // Relative directions can be applied to absolute directions to get a new absolute
 // direction.
 type AbsoluteDirection interface {
+	// Same speech as above.
 	concrete() absoluteDirection
+	// Returns 0, 1, 2 or 3 for EAST, NORTH, WEST and SOUTH.
 	Value() int
+	// Apply a relative direction to an absolute direction to get another absolute
+	// direction.  For example, LEFT of WEST is SOUTH.
 	Add(b RelativeDirection) AbsoluteDirection
+	// Returns the X and Y increments corresponding to the current direction.
+	// For example, `EAST.DxDy()` returns `1, 0`.  Because moving east increments
+	// your x and leaves y alone.  `SOUTH.DxDy()` returns `0, -1`, because south
+	// points toward negative y.
 	DxDy() (Coord, Coord)
 }
 
+// Used to represent either an absolute position, or a relative position.  Kind of
+// messy compared with the rotations.  However, the x and y coordinates are easy to
+// get right, as their algebra is not modulo 4, so I do not need a safety net in
+// the form of type checking here.
 type Coord int
 
-var COS = [...]Coord{1, 0, -1, 0}
-var SIN = [...]Coord{0, 1, 0, -1}
+// Not exported to prevent people from messing with these.
+var _COS = [...]Coord{1, 0, -1, 0}
+var _SIN = [...]Coord{0, 1, 0, -1}
 
 func (rel relativeDirection) concrete() relativeDirection {
 	return rel
@@ -110,7 +120,7 @@ func (dir *absoluteDirection) GobDecode(bytes []byte) error {
 }
 
 func (dir absoluteDirection) DxDy() (Coord, Coord) {
-	return COS[dir.value], SIN[dir.value]
+	return _COS[dir.value], _SIN[dir.value]
 }
 
 type Location struct {
@@ -160,11 +170,11 @@ func (self Position) SetF(f AbsoluteDirection) Position {
 }
 
 func (self Position) TurnLeft() Position {
-	self.F = self.F.Add(LEFT)
+	self.F = self.F.Add(LEFT())
 	return self
 }
 func (self Position) TurnRight() Position {
-	self.F = self.F.Add(RIGHT)
+	self.F = self.F.Add(RIGHT())
 	return self
 }
 
@@ -183,14 +193,14 @@ func (self Position) MoveRelative(reldir RelativeDirection, steps int) Position 
 }
 
 func (self Position) MoveForward(steps int) Position {
-	return self.MoveRelative(FRONT, steps)
+	return self.MoveRelative(FRONT(), steps)
 }
 func (self Position) MoveLeft(steps int) Position {
-	return self.MoveRelative(LEFT, steps)
+	return self.MoveRelative(LEFT(), steps)
 }
 func (self Position) MoveBackward(steps int) Position {
-	return self.MoveRelative(BACK, steps)
+	return self.MoveRelative(BACK(), steps)
 }
 func (self Position) MoveRight(steps int) Position {
-	return self.MoveRelative(RIGHT, steps)
+	return self.MoveRelative(RIGHT(), steps)
 }
