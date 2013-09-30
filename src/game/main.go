@@ -178,32 +178,6 @@ type ProgramState struct {
 	World world.World // Immutable, pure.
 }
 
-func MaybeMove(level world.Level, position world.Position, rel_dir world.RelativeDirection) (world.Position, bool) {
-	wall_passable := true   // By default, no wall is good.
-	floor_passable := false // By default, no floor is bad.
-	// Direction of the movement relative to facing.
-	direction := position.F.Add(rel_dir)
-	// Western walls face East.
-	wall_facing := rel_dir.Add(world.BACK())
-	wall_index := wall_facing.Value()
-
-	building, ok := level.Walls[wall_index].Get(position.X, position.Y)
-	if ok {
-		wall_passable = building.(world.Wall).IsPassable()
-	}
-
-	new_pos := position.SetF(direction).MoveForward(1)
-	building, ok = level.Floors.Get(new_pos.X, new_pos.Y)
-	if ok {
-		floor_passable = building.(world.Floor).IsPassable()
-	}
-
-	if wall_passable && floor_passable {
-		return new_pos.SetF(position.F), true
-	}
-	return position, false
-}
-
 func CommandToAction(command Command, actor_id world.ActorId) world.Action {
 	var action world.Action
 	switch command {
@@ -502,60 +476,35 @@ func Render(program_state ProgramState) {
 	gl.ClearColor(0.0, 0.0, 0.4, 0.0)
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	v := ViewMatrix(program_state.World.Level.Actors[program_state.World.Player_id].Pos)
-	for coords, floor := range program_state.World.Level.Floors {
-		// The default model matrix only needs a translation.
-		m := glm.Vector3{float64(coords.X), float64(coords.Y), 0}.Translation()
-		switch floor.(type) {
-		case world.Floor:
-			{
-				// But Oriented buildig have a rotation as well.
-				facing := floor.(world.Floor).F
-				R := glm.RotZ(float64(90 * facing.Value()))
-				m = m.Mult(R)
-			}
-		}
-		mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
-		program_state.Gl.Shapes[floor.Model()].Draw(program_state.Gl.Programs, &mvp)
-	}
-	for coords, ceiling := range program_state.World.Level.Ceilings {
-		// The default model matrix only needs a translation.
-		m := glm.Vector3{float64(coords.X), float64(coords.Y), 0}.Translation()
-		switch ceiling.(type) {
-		case world.OrientedBuilding:
-			{
-				// But Oriented buildig have a rotation as well.
-				facing := ceiling.(world.OrientedBuilding).F
-				R := glm.RotZ(float64(90 * facing.Value()))
-				m = m.Mult(R)
-			}
-		}
-		mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
-		program_state.Gl.Shapes[ceiling.Model()].Draw(program_state.Gl.Programs, &mvp)
-	}
+	vp := (program_state.Gl.P).Mult(v)
+	RenderBuildings(
+		&program_state.World.Level.Floors,
+		0, 0,
+		&vp, nil,
+		&program_state.Gl,
+	)
+	RenderBuildings(
+		&program_state.World.Level.Ceilings,
+		0, 0,
+		&vp, nil,
+		&program_state.Gl,
+	)
+	RenderBuildings(
+		&program_state.World.Level.Columns,
+		-.5, -.5,
+		&vp, nil,
+		&program_state.Gl,
+	)
 	for facing := 0; facing < 4; facing++ {
-		R := glm.RotZ(float64(90 * facing))
-		for coords, wall := range program_state.World.Level.Walls[facing] {
-			m := glm.Vector3{float64(coords.X), float64(coords.Y), 0}.Translation()
-			m = m.Mult(R)
-			mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
-			program_state.Gl.Shapes[wall.Model()].Draw(program_state.Gl.Programs, &mvp)
-		}
+		default_r := glm.RotZ(float64(90 * facing))
+		RenderBuildings(
+			&program_state.World.Level.Walls[facing],
+			0, 0,
+			&vp, &default_r,
+			&program_state.Gl,
+		)
 	}
-	for coords, column := range program_state.World.Level.Columns {
-		// The default model matrix only needs a translation.
-		m := glm.Vector3{float64(coords.X) - .5, float64(coords.Y) - .5, 0}.Translation()
-		switch column.(type) {
-		case world.OrientedBuilding:
-			{
-				// But Oriented buildig have a rotation as well.
-				facing := column.(world.OrientedBuilding).F
-				R := glm.RotZ(float64(90 * facing.Value()))
-				m = m.Mult(R)
-			}
-		}
-		mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
-		program_state.Gl.Shapes[column.Model()].Draw(program_state.Gl.Programs, &mvp)
-	}
+
 	//// Stupid render of the one dynamic object.
 	//dyn := program_state.World.Level.Dynamic
 	//m := dyn.ModelMat(program_state.World.Time)
@@ -568,8 +517,13 @@ func Render(program_state ProgramState) {
 	//program_state.Gl.Monster.Draw(program_state.Gl.Programs, &mvp)
 }
 
-func RenderBuildings(buildings world.Buildings, offset_x, offset_y float64, vp glm.Matrix4, gl_state GlState) {
-	for coords, building := range buildings {
+func RenderBuildings(
+	buildings *world.Buildings,
+	offset_x, offset_y float64,
+	vp, default_r *glm.Matrix4,
+	gl_state *GlState,
+) {
+	for coords, building := range *buildings {
 		m := glm.Vector3{
 			float64(coords.X) + offset_x,
 			float64(coords.Y) + offset_y,
@@ -577,8 +531,13 @@ func RenderBuildings(buildings world.Buildings, offset_x, offset_y float64, vp g
 		}.Translation()
 		facer, ok := building.(world.Facer)
 		if ok {
-			R := glm.RotZ(float64(90 * facer.Facing().Value()))
-			m = m.Mult(R)
+			// We obey the facing of the buildings that have one.
+			r := glm.RotZ(float64(90 * facer.Facing().Value()))
+			m = m.Mult(r)
+		} else {
+			// Buildings without facing receive the provided default facing.
+			// It is given as a precalculated rotation matrix `default_r`.
+			m = m.Mult(*default_r)
 		}
 		mvp := vp.Mult(m).Gl()
 		gl_state.Shapes[building.Model()].Draw(gl_state.Programs, &mvp)
