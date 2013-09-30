@@ -47,6 +47,26 @@ func (world *World) Save() error {
 	return encoder.Encode(world)
 }
 
+func MakeWorld() World {
+	var world World
+	world = world.ClearActions()
+	player_id := ActorId(0)
+	var player_position Position
+	player_position.X = 0
+	player_position.Y = 0
+	player_position.F = EAST()
+	player := Actor{Pos: player_position}
+	actors := make(Actors, 1)
+	actors[player_id] = player
+	world.Level.Actors = actors
+	return world
+}
+
+func (world World) ClearActions() World {
+	world.Actions = make([]Action, 0, 16)
+	return world
+}
+
 func (world World) ExecuteActions() World {
 	for _, action := range world.Actions {
 		new_world, err := action.Execute(world)
@@ -56,6 +76,5 @@ func (world World) ExecuteActions() World {
 			fmt.Println(action, err)
 		}
 	}
-	world.Actions = make([]Action, 0, 16)
-	return world
+	return world.ClearActions()
 }

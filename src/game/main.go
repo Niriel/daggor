@@ -258,10 +258,11 @@ func LevelCommand(level world.Level, position world.Position, command Command) w
 	there_x, there_y := there.X, there.Y
 	switch command {
 	case COMMAND_PLACE_FLOOR:
-		floor := world.MakeFloor(FLOOR_ID, 0, true)
+		floor := world.MakeFloor(FLOOR_ID, world.EAST(), true)
 		level.Floors = level.Floors.Set(there_x, there_y, floor)
 	case COMMAND_PLACE_CEILING:
-		level.Ceilings = level.Ceilings.Set(there_x, there_y, world.MakeOrientedBuilding(CEILING_ID, 0))
+		ceiling := world.MakeOrientedBuilding(CEILING_ID, world.EAST())
+		level.Ceilings = level.Ceilings.Set(there_x, there_y, ceiling)
 	case COMMAND_PLACE_WALL:
 		{
 			// If the player faces North, then the wall must face South in order
@@ -272,40 +273,36 @@ func LevelCommand(level world.Level, position world.Position, command Command) w
 			level.Walls[index] = level.Walls[index].Set(here_x, here_y, wall)
 		}
 	case COMMAND_PLACE_COLUMN:
-		level.Columns = level.Columns.Set(there_x, there_y, world.MakeOrientedBuilding(COLUMN_ID, 0))
+		level.Columns = level.Columns.Set(there_x, there_y, world.MakeOrientedBuilding(COLUMN_ID, world.EAST()))
 	case COMMAND_ROTATE_FLOOR_DIRECT, COMMAND_ROTATE_FLOOR_RETROGRADE:
 		{
-			var offset int
-			if command == COMMAND_ROTATE_FLOOR_DIRECT {
-				offset = 1
-			} else {
-				offset = 3
-				// Equivalent to -1 with modulo 4.
-				// Because Go's modulo is stupid.
-			}
-			floor := level.Floors[world.Location{X: there_x, Y: there_y}]
-			orientable, ok := floor.(world.OrientedBuilding)
+			building := level.Floors[world.Location{X: there_x, Y: there_y}]
+			floor, ok := building.(world.Floor)
 			if ok {
-				orientable.Facing = (orientable.Facing + offset) % 4
-				level.Floors = level.Floors.Set(there_x, there_y, orientable)
+				var rel_dir world.RelativeDirection
+				if command == COMMAND_ROTATE_FLOOR_DIRECT {
+					rel_dir = world.LEFT()
+				} else {
+					rel_dir = world.RIGHT()
+				}
+				floor.Facing = floor.Facing.Add(rel_dir)
+				level.Floors = level.Floors.Set(there_x, there_y, floor)
 			} else {
 				fmt.Println("You cannot rotate that.")
 			}
 		}
 	case COMMAND_ROTATE_COLUMN_DIRECT, COMMAND_ROTATE_COLUMN_RETROGRADE:
 		{
-			var offset int
+			var rel_dir world.RelativeDirection
 			if command == COMMAND_ROTATE_COLUMN_DIRECT {
-				offset = 1
+				rel_dir = world.LEFT()
 			} else {
-				offset = 3
-				// Equivalent to -1 with modulo 4.
-				// Because Go's modulo is stupid.
+				rel_dir = world.RIGHT()
 			}
 			column := level.Columns[world.Location{X: there_x, Y: there_y}]
 			orientable, ok := column.(world.OrientedBuilding)
 			if ok {
-				orientable.Facing = (orientable.Facing + offset) % 4
+				orientable.Facing = orientable.Facing.Add(rel_dir)
 				level.Columns = level.Columns.Set(there_x, there_y, orientable)
 			} else {
 				fmt.Println("You cannot rotate that.")
@@ -313,18 +310,16 @@ func LevelCommand(level world.Level, position world.Position, command Command) w
 		}
 	case COMMAND_ROTATE_CEILING_DIRECT, COMMAND_ROTATE_CEILING_RETROGRADE:
 		{
-			var offset int
+			var rel_dir world.RelativeDirection
 			if command == COMMAND_ROTATE_CEILING_DIRECT {
-				offset = 1
+				rel_dir = world.LEFT()
 			} else {
-				offset = 3
-				// Equivalent to -1 with modulo 4.
-				// Because Go's modulo is stupid.
+				rel_dir = world.RIGHT()
 			}
 			ceiling := level.Ceilings[world.Location{X: there_x, Y: there_y}]
 			orientable, ok := ceiling.(world.OrientedBuilding)
 			if ok {
-				orientable.Facing = (orientable.Facing + offset) % 4
+				orientable.Facing = orientable.Facing.Add(rel_dir)
 				level.Ceilings = level.Ceilings.Set(there_x, there_y, orientable)
 			} else {
 				fmt.Println("You cannot rotate that.")
@@ -455,16 +450,7 @@ func main() {
 	gl.CullFace(gl.BACK)
 	gl.FrontFace(gl.CCW)
 
-	player_id := world.ActorId(0)
-	var player_position world.Position
-	player_position.X = 0
-	player_position.Y = 0
-	player_position.F = world.EAST()
-	player := world.Actor{Pos: player_position}
-	actors := make(world.Actors, 1)
-	actors[player_id] = player
-	program_state.World.Level.Actors = actors
-	program_state.World.Actions = make([]world.Action, 0, 16)
+	program_state.World = world.MakeWorld()
 
 	MainLoop(program_state)
 }
@@ -520,11 +506,11 @@ func Render(program_state ProgramState) {
 		// The default model matrix only needs a translation.
 		m := glm.Vector3{float64(coords.X), float64(coords.Y), 0}.Translation()
 		switch floor.(type) {
-		case world.OrientedBuilding:
+		case world.Floor:
 			{
 				// But Oriented buildig have a rotation as well.
-				facing := floor.(world.OrientedBuilding).Facing
-				R := glm.RotZ(float64(90 * facing))
+				facing := floor.(world.Floor).Facing
+				R := glm.RotZ(float64(90 * facing.Value()))
 				m = m.Mult(R)
 			}
 		}
@@ -539,7 +525,7 @@ func Render(program_state ProgramState) {
 			{
 				// But Oriented buildig have a rotation as well.
 				facing := ceiling.(world.OrientedBuilding).Facing
-				R := glm.RotZ(float64(90 * facing))
+				R := glm.RotZ(float64(90 * facing.Value()))
 				m = m.Mult(R)
 			}
 		}
@@ -563,7 +549,7 @@ func Render(program_state ProgramState) {
 			{
 				// But Oriented buildig have a rotation as well.
 				facing := column.(world.OrientedBuilding).Facing
-				R := glm.RotZ(float64(90 * facing))
+				R := glm.RotZ(float64(90 * facing.Value()))
 				m = m.Mult(R)
 			}
 		}

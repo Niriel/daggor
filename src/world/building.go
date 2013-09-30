@@ -9,8 +9,8 @@ func init() {
 	// teach it the concrete types that implement these
 	// interfaces.
 	gob.Register(MakeBaseBuilding(0))
-	gob.Register(MakeOrientedBuilding(0, 0))
-	gob.Register(MakeFloor(0, 0, false))
+	gob.Register(MakeOrientedBuilding(0, EAST()))
+	gob.Register(MakeFloor(0, EAST(), false))
 	gob.Register(MakeWall(0, false))
 }
 
@@ -29,7 +29,7 @@ type BaseBuilding struct {
 
 type OrientedBuilding struct {
 	BaseBuilding
-	Facing int
+	Facing AbsoluteDirection
 }
 
 type MaybePassable struct {
@@ -58,7 +58,7 @@ func (self BaseBuilding) Model() ModelId {
 	return self.Model_
 }
 
-func MakeFloor(model ModelId, facing int, passable bool) Floor {
+func MakeFloor(model ModelId, facing AbsoluteDirection, passable bool) Floor {
 	var floor Floor
 	floor.Model_ = model
 	floor.Facing = facing
@@ -73,7 +73,7 @@ func MakeWall(model ModelId, passable bool) Wall {
 	return wall
 }
 
-func MakeOrientedBuilding(model ModelId, facing int) OrientedBuilding {
+func MakeOrientedBuilding(model ModelId, facing AbsoluteDirection) OrientedBuilding {
 	var result OrientedBuilding
 	result.Model_ = model
 	result.Facing = facing
