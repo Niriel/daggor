@@ -164,21 +164,27 @@ func (self Position) SetY(y Coord) Position {
 	self.Y = y
 	return self
 }
+func (self Position) SetLocation(location Location) Position {
+	self.X = location.X
+	self.Y = location.Y
+	return self
+}
 func (self Position) SetF(f AbsoluteDirection) Position {
 	self.F = f
 	return self
 }
-
-func (self Position) TurnLeft() Position {
-	self.F = self.F.Add(LEFT())
-	return self
-}
-func (self Position) TurnRight() Position {
-	self.F = self.F.Add(RIGHT())
+func (self Position) Turn(rel_dir RelativeDirection, steps int) Position {
+	for step_id := 0; step_id < steps; step_id++ {
+		self.F = self.F.Add(rel_dir)
+	}
 	return self
 }
 
 func (self Position) MoveAbsolute(absdir AbsoluteDirection, steps int) Position {
+	return self.Location.MoveAbsolute(absdir, steps).ToPosition(self.F)
+}
+
+func (self Location) MoveAbsolute(absdir AbsoluteDirection, steps int) Location {
 	dx, dy := absdir.DxDy()
 	// Ugly casting.  dx and dy are distances, which I multiply by a pure number
 	// `steps`.  The result are also distances, which I add to a position to get
@@ -191,7 +197,6 @@ func (self Position) MoveAbsolute(absdir AbsoluteDirection, steps int) Position 
 func (self Position) MoveRelative(reldir RelativeDirection, steps int) Position {
 	return self.MoveAbsolute(self.F.Add(reldir), steps)
 }
-
 func (self Position) MoveForward(steps int) Position {
 	return self.MoveRelative(FRONT(), steps)
 }

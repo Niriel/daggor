@@ -366,3 +366,105 @@ is created with one and only one dynamic object in it.  Both its position and
 its vertices are modified each frame.  The dynamic object knows when it was born
 and what time it is now, so it knows how to display itself.
 
+Artificial Intelligence.
+========================
+
+Actions.
+--------
+
+Intelligence, whether artificial or natural (that of the player) results in a
+creature performing an action.
+
+Examples of actions: drink a potion, step to the left, read a scroll, pull a
+lever, cast a spell, wait.
+
+Should things like "put on a helmet" be an action?  I guess so.  We can either
+consider that the character suddenly has a helmet on their head (because divine
+intervention of the player) or that the character actually puts on a helmet.  I
+really do not plan for the IA to manage clothes, but I don't see any reason to
+prevent it either.
+
+Turning is also an action.
+
+Actions take time.  So, an action need to carry some state over several frames.
+Each creature has a current action.  When we loop over all the creatures to run
+their IA, we give that current action to the IA function.  If the IA function
+sees that that action is over, then it comes up with a new action, otherwise it
+returns that action.
+
+Some actions seem not to need an object.  For example, wait, or move forward.
+Some seem to need an object, like drink a potion, attack someone.
+What if the object disappears?  What if a creature is attacking another, but
+that other creature is killed before the hit lands?  Should I stop the action
+immediately or let it reach its end?  In the case of a step, or a weapon blow,
+it feels weird to interrupt suddenly because of mechanical momentum.  In the
+case of reading a scroll or drinking a potion, it's less clear.  When eating a
+meal or writing something, then it is clear that we need to be interrupted.
+
+So actions should be able to be interrupted, unless they would leave the game in
+an insane state.  For example, a creature needs to be standing on one tile, so
+its movement must not be interrupted before it is finished.  But it is perfectly
+valid to eat half your bread.  So, in a sense, it is linked to the granularity
+of the action.  A bread can have a granularity of 10, indicating ten bites,
+while walking forward has a granularity of 1.  Seen like that, each bite in a
+bread has a granularity of 1 and cannot be interrupted.  So, in the end, no
+action can be interrupted.  The actions that can are actually meta actions that
+put several small actions in sequence.
+
+If a creature has no action going, then it comes up with one the next time it
+thinks.  If it has an action going, then it progresses it.  What when an action
+finished during a frame?  Should a new action be generated, or should we return
+the finished action?  I believe that we should return the finished action so
+that we can see that 100% sometimes.  What if a finished action is sent to a
+creature ?  Then it is equivalent to no action at all, the creature comes up
+with a new one.  In short: really finish what you're doing before starting
+something else.
+
+Now, we know how long it takes to do something.  We have yet to know what we are
+doing.  Some actions are simple: "Move forward".  Some are complicated: "Cast
+fireball at goblin".  I don't think it can get more complicated.  So, four
+cases?
+
+ * verb (wait)
+ * verb object (drink potion, wield sword, push button)
+ * verb target (go there)
+ * verb object target (use sword on goblin, use gem on sword)
+
+Objects can be targets, but targets cannot always be object?
+What about transitivity?  Is Use sword on goblin the same as use goblin on
+sword?  Probably.  But Cast Goblin at Fireball?  Nope.
+
+Maybe there is always a target.  Drink potion: use potion on self.  Push button:
+use hand on button.  Wield sword: equip sword to self/hand, something like that.
+
+Maybe there is always an object.  Go there: move self to there.
+
+Damn, this is a mess.  It's a mess because that system is more adapted to a real
+time game than a turned based game.  Turn base cut the momentum, so the
+perception of speed by the player is bad.  That makes it very difficult to know
+whether or not an attack will land on time, all that stuff.  I want real turns.
+One turn is one move or one attack or one spell, etc.
+
+I do not want every creature to move at the same speed, because that creates
+very boring situations where a creature can follow you forever.  Let's imagine
+three speeds for now: slow, normal and fast.  Fast would act every turn.  Normal
+would act every other turn.  Slow would act every three turns.  So there is
+some period: fast=1, normal=2, slow=3 for example.  That means we have an action
+clock in addition to the tick clock.  The tick clock is used for animations, it
+is driven by the game loop.  The action clock is independent from the tick clock
+although it can be driven by it in order to give a real-time feeling.
+
+In turned-based mode, the action clock stops when it is the player turn to play.
+In real-time mode, it does not stop.  If the player does not take an action when
+it is able to do so, then no problem, the action clock keep ticking and the
+player character does nothing.  When the player decides to start an action, then
+that action starts at the current action tick.
+
+Action ticks should be quick enough, something of the order of ten times per
+second.  This is to provide granularity for two different things:
+
+ * Action periods of the order of 10 instead of 1 allow for more fine tuning of
+   speed.
+ * Keeps the game reactive in real-time mode.
+
+

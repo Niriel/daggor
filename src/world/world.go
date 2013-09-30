@@ -11,9 +11,10 @@ import (
 type ModelId uint16
 
 type World struct {
-	Player Player
-	Level  Level
-	Time   uint64 // Nanoseconds.
+	Player_id ActorId  // Later, there will also be a LevelId too in here.
+	Level     Level    // Later, there will be many.
+	Actions   []Action // IA for the entire world.
+	Time      uint64   // Nanoseconds.
 }
 
 func Load() (*World, error) {
@@ -44,4 +45,17 @@ func (world *World) Save() error {
 	}
 	encoder := gob.NewEncoder(f)
 	return encoder.Encode(world)
+}
+
+func (world World) ExecuteActions() World {
+	for _, action := range world.Actions {
+		new_world, err := action.Execute(world)
+		if err == nil {
+			world = new_world
+		} else {
+			fmt.Println(action, err)
+		}
+	}
+	world.Actions = make([]Action, 0, 16)
+	return world
 }

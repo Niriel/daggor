@@ -6,4 +6,26 @@ type Level struct {
 	Walls    [4]Buildings // Sorted by facing.
 	Columns  Buildings
 	Dynamic  Dynamic
+	Actors   Actors
+}
+
+func (level *Level) IsPassable(location Location, direction AbsoluteDirection) bool {
+	wall_passable := true   // By default, no wall is good.
+	floor_passable := false // By default, no floor is bad.
+	// Western walls face East.
+	wall_facing := direction.Add(BACK())
+	wall_index := wall_facing.Value()
+
+	building, ok := level.Walls[wall_index].Get(location.X, location.Y)
+	if ok {
+		wall_passable = building.(Wall).IsPassable()
+	}
+
+	new_loc := location.MoveAbsolute(direction, 1)
+	building, ok = level.Floors.Get(new_loc.X, new_loc.Y)
+	if ok {
+		floor_passable = building.(Floor).IsPassable()
+	}
+
+	return wall_passable && floor_passable
 }

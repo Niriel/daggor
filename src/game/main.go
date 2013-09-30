@@ -204,60 +204,75 @@ func MaybeMove(level world.Level, position world.Position, rel_dir world.Relativ
 	return position, false
 }
 
-func PlayerCommand(level world.Level, player world.Player, command Command) world.Player {
+func CommandToAction(command Command, actor_id world.ActorId) world.Action {
+	var action world.Action
 	switch command {
 	case COMMAND_TURN_LEFT:
-		player.Pos = player.Pos.TurnLeft()
+		action = world.ActionTurn{
+			Subject_id: actor_id,
+			Direction:  world.LEFT(),
+			Steps:      1,
+		}
 	case COMMAND_TURN_RIGHT:
-		player.Pos = player.Pos.TurnRight()
+		action = world.ActionTurn{
+			Subject_id: actor_id,
+			Direction:  world.RIGHT(),
+			Steps:      1,
+		}
 	default:
 		{
-			var rel_dir world.RelativeDirection
 			switch command {
 			case COMMAND_FORWARD:
-				rel_dir = world.FRONT()
+				action = world.ActionMoveRelative{
+					Subject_id: actor_id,
+					Direction:  world.FRONT(),
+					Steps:      1,
+				}
 			case COMMAND_STRAFE_LEFT:
-				rel_dir = world.LEFT()
+				action = world.ActionMoveRelative{
+					Subject_id: actor_id,
+					Direction:  world.LEFT(),
+					Steps:      1,
+				}
 			case COMMAND_BACKWARD:
-				rel_dir = world.BACK()
+				action = world.ActionMoveRelative{
+					Subject_id: actor_id,
+					Direction:  world.BACK(),
+					Steps:      1,
+				}
 			case COMMAND_STRAFE_RIGHT:
-				rel_dir = world.RIGHT()
-			default:
-				return player
-			}
-			new_pos, ok := MaybeMove(level, player.Pos, rel_dir)
-			if ok {
-				player.Pos = new_pos
-			} else {
-				fmt.Println("You cannot go that way.")
+				action = world.ActionMoveRelative{
+					Subject_id: actor_id,
+					Direction:  world.RIGHT(),
+					Steps:      1,
+				}
 			}
 		}
 	}
-	return player
+	return action
 }
 
-func LevelCommand(level world.Level, player world.Player, command Command) world.Level {
-	here := player.Pos
-	here_x, here_y := world.Coord(here.X), world.Coord(here.Y)
-	there := here.MoveForward(1)
-	x, y := world.Coord(there.X), world.Coord(there.Y)
+func LevelCommand(level world.Level, position world.Position, command Command) world.Level {
+	here_x, here_y := position.X, position.Y
+	there := position.MoveForward(1)
+	there_x, there_y := there.X, there.Y
 	switch command {
 	case COMMAND_PLACE_FLOOR:
 		floor := world.MakeFloor(FLOOR_ID, 0, true)
-		level.Floors = level.Floors.Set(x, y, floor)
+		level.Floors = level.Floors.Set(there_x, there_y, floor)
 	case COMMAND_PLACE_CEILING:
-		level.Ceilings = level.Ceilings.Set(x, y, world.MakeOrientedBuilding(CEILING_ID, 0))
+		level.Ceilings = level.Ceilings.Set(there_x, there_y, world.MakeOrientedBuilding(CEILING_ID, 0))
 	case COMMAND_PLACE_WALL:
 		{
 			// If the player faces North, then the wall must face South in order
 			// to face the player.
-			facing := player.Pos.F.Add(world.BACK())
+			facing := position.F.Add(world.BACK())
 			index := facing.Value()
 			wall := world.MakeWall(WALL_ID, false)
 			level.Walls[index] = level.Walls[index].Set(here_x, here_y, wall)
 		}
 	case COMMAND_PLACE_COLUMN:
-		level.Columns = level.Columns.Set(x, y, world.MakeOrientedBuilding(COLUMN_ID, 0))
+		level.Columns = level.Columns.Set(there_x, there_y, world.MakeOrientedBuilding(COLUMN_ID, 0))
 	case COMMAND_ROTATE_FLOOR_DIRECT, COMMAND_ROTATE_FLOOR_RETROGRADE:
 		{
 			var offset int
@@ -268,11 +283,11 @@ func LevelCommand(level world.Level, player world.Player, command Command) world
 				// Equivalent to -1 with modulo 4.
 				// Because Go's modulo is stupid.
 			}
-			floor := level.Floors[world.Location{X: x, Y: y}]
+			floor := level.Floors[world.Location{X: there_x, Y: there_y}]
 			orientable, ok := floor.(world.OrientedBuilding)
 			if ok {
 				orientable.Facing = (orientable.Facing + offset) % 4
-				level.Floors = level.Floors.Set(x, y, orientable)
+				level.Floors = level.Floors.Set(there_x, there_y, orientable)
 			} else {
 				fmt.Println("You cannot rotate that.")
 			}
@@ -287,11 +302,11 @@ func LevelCommand(level world.Level, player world.Player, command Command) world
 				// Equivalent to -1 with modulo 4.
 				// Because Go's modulo is stupid.
 			}
-			column := level.Columns[world.Location{X: x, Y: y}]
+			column := level.Columns[world.Location{X: there_x, Y: there_y}]
 			orientable, ok := column.(world.OrientedBuilding)
 			if ok {
 				orientable.Facing = (orientable.Facing + offset) % 4
-				level.Columns = level.Columns.Set(x, y, orientable)
+				level.Columns = level.Columns.Set(there_x, there_y, orientable)
 			} else {
 				fmt.Println("You cannot rotate that.")
 			}
@@ -306,26 +321,26 @@ func LevelCommand(level world.Level, player world.Player, command Command) world
 				// Equivalent to -1 with modulo 4.
 				// Because Go's modulo is stupid.
 			}
-			ceiling := level.Ceilings[world.Location{X: x, Y: y}]
+			ceiling := level.Ceilings[world.Location{X: there_x, Y: there_y}]
 			orientable, ok := ceiling.(world.OrientedBuilding)
 			if ok {
 				orientable.Facing = (orientable.Facing + offset) % 4
-				level.Ceilings = level.Ceilings.Set(x, y, orientable)
+				level.Ceilings = level.Ceilings.Set(there_x, there_y, orientable)
 			} else {
 				fmt.Println("You cannot rotate that.")
 			}
 		}
 	case COMMAND_REMOVE_FLOOR:
-		level.Floors = level.Floors.Delete(x, y)
+		level.Floors = level.Floors.Delete(there_x, there_y)
 	case COMMAND_REMOVE_COLUMN:
-		level.Columns = level.Columns.Delete(x, y)
+		level.Columns = level.Columns.Delete(there_x, there_y)
 	case COMMAND_REMOVE_CEILING:
-		level.Ceilings = level.Ceilings.Delete(x, y)
+		level.Ceilings = level.Ceilings.Delete(there_x, there_y)
 	case COMMAND_REMOVE_WALL:
 		{
 			// If the player faces North, then the wall must face South in order
 			// to face the player.
-			facing := player.Pos.F.Add(world.BACK())
+			facing := position.F.Add(world.BACK())
 			index := facing.Value()
 			level.Walls[index] = level.Walls[index].Delete(here_x, here_y)
 		}
@@ -340,9 +355,17 @@ func NewProgramState(program_state ProgramState, commands []Command) ProgramStat
 	for _, command := range commands {
 		switch {
 		case command <= COMMAND_TURN_RIGHT:
-			program_state.World.Player = PlayerCommand(program_state.World.Level, program_state.World.Player, command)
+			action := CommandToAction(command, program_state.World.Player_id)
+			if action != nil {
+				program_state.World.Actions = append(program_state.World.Actions, action)
+			} else {
+				fmt.Println("Nil action")
+			}
 		case command < COMMAND_SAVE:
-			program_state.World.Level = LevelCommand(program_state.World.Level, program_state.World.Player, command)
+			player_id := program_state.World.Player_id
+			player := program_state.World.Level.Actors[player_id]
+			position := player.Pos
+			program_state.World.Level = LevelCommand(program_state.World.Level, position, command)
 		case command == COMMAND_SAVE:
 			err := program_state.World.Save()
 			fmt.Println("Save:", err)
@@ -432,7 +455,16 @@ func main() {
 	gl.CullFace(gl.BACK)
 	gl.FrontFace(gl.CCW)
 
-	program_state.World.Player.Pos = program_state.World.Player.Pos.SetF(world.EAST())
+	player_id := world.ActorId(0)
+	var player_position world.Position
+	player_position.X = 0
+	player_position.Y = 0
+	player_position.F = world.EAST()
+	player := world.Actor{Pos: player_position}
+	actors := make(world.Actors, 1)
+	actors[player_id] = player
+	program_state.World.Level.Actors = actors
+	program_state.World.Actions = make([]world.Action, 0, 16)
 
 	MainLoop(program_state)
 }
@@ -472,6 +504,7 @@ func OnTick(program_state ProgramState, dt uint64) (ProgramState, bool) {
 		// Evolve the program one step.
 		program_state.World.Time += dt
 		program_state = NewProgramState(program_state, commands)
+		program_state.World = program_state.World.ExecuteActions()
 		// Render on screen.
 		Render(program_state)
 		program_state.Gl.Window.SwapBuffers()
@@ -482,7 +515,7 @@ func OnTick(program_state ProgramState, dt uint64) (ProgramState, bool) {
 func Render(program_state ProgramState) {
 	gl.ClearColor(0.0, 0.0, 0.4, 0.0)
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-	v := ViewMatrix(program_state.World.Player.Pos)
+	v := ViewMatrix(program_state.World.Level.Actors[program_state.World.Player_id].Pos)
 	for coords, floor := range program_state.World.Level.Floors {
 		// The default model matrix only needs a translation.
 		m := glm.Vector3{float64(coords.X), float64(coords.Y), 0}.Translation()
