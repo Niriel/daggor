@@ -29,7 +29,7 @@ type BaseBuilding struct {
 
 type OrientedBuilding struct {
 	BaseBuilding
-	Facing AbsoluteDirection
+	F AbsoluteDirection
 }
 
 type MaybePassable struct {
@@ -61,7 +61,7 @@ func (self BaseBuilding) Model() ModelId {
 func MakeFloor(model ModelId, facing AbsoluteDirection, passable bool) Floor {
 	var floor Floor
 	floor.Model_ = model
-	floor.Facing = facing
+	floor.F = facing
 	floor.Passable_ = passable
 	return floor
 }
@@ -76,8 +76,12 @@ func MakeWall(model ModelId, passable bool) Wall {
 func MakeOrientedBuilding(model ModelId, facing AbsoluteDirection) OrientedBuilding {
 	var result OrientedBuilding
 	result.Model_ = model
-	result.Facing = facing
+	result.F = facing
 	return result
+}
+
+func (building OrientedBuilding) Facing() AbsoluteDirection {
+	return building.F
 }
 
 type Buildings map[Location]Building

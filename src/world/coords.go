@@ -69,6 +69,10 @@ type AbsoluteDirection interface {
 	DxDy() (Coord, Coord)
 }
 
+type Facer interface {
+	Facing() AbsoluteDirection
+}
+
 // Used to represent either an absolute position, or a relative position.  Kind of
 // messy compared with the rotations.  However, the x and y coordinates are easy to
 // get right, as their algebra is not modulo 4, so I do not need a safety net in
@@ -208,4 +212,8 @@ func (self Position) MoveBackward(steps int) Position {
 }
 func (self Position) MoveRight(steps int) Position {
 	return self.MoveRelative(RIGHT(), steps)
+}
+
+func (self Position) Facing() AbsoluteDirection {
+	return self.F
 }

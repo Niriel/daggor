@@ -285,7 +285,7 @@ func LevelCommand(level world.Level, position world.Position, command Command) w
 				} else {
 					rel_dir = world.RIGHT()
 				}
-				floor.Facing = floor.Facing.Add(rel_dir)
+				floor.F = floor.F.Add(rel_dir)
 				level.Floors = level.Floors.Set(there_x, there_y, floor)
 			} else {
 				fmt.Println("You cannot rotate that.")
@@ -302,7 +302,7 @@ func LevelCommand(level world.Level, position world.Position, command Command) w
 			column := level.Columns[world.Location{X: there_x, Y: there_y}]
 			orientable, ok := column.(world.OrientedBuilding)
 			if ok {
-				orientable.Facing = orientable.Facing.Add(rel_dir)
+				orientable.F = orientable.F.Add(rel_dir)
 				level.Columns = level.Columns.Set(there_x, there_y, orientable)
 			} else {
 				fmt.Println("You cannot rotate that.")
@@ -319,7 +319,7 @@ func LevelCommand(level world.Level, position world.Position, command Command) w
 			ceiling := level.Ceilings[world.Location{X: there_x, Y: there_y}]
 			orientable, ok := ceiling.(world.OrientedBuilding)
 			if ok {
-				orientable.Facing = orientable.Facing.Add(rel_dir)
+				orientable.F = orientable.F.Add(rel_dir)
 				level.Ceilings = level.Ceilings.Set(there_x, there_y, orientable)
 			} else {
 				fmt.Println("You cannot rotate that.")
@@ -509,7 +509,7 @@ func Render(program_state ProgramState) {
 		case world.Floor:
 			{
 				// But Oriented buildig have a rotation as well.
-				facing := floor.(world.Floor).Facing
+				facing := floor.(world.Floor).F
 				R := glm.RotZ(float64(90 * facing.Value()))
 				m = m.Mult(R)
 			}
@@ -524,7 +524,7 @@ func Render(program_state ProgramState) {
 		case world.OrientedBuilding:
 			{
 				// But Oriented buildig have a rotation as well.
-				facing := ceiling.(world.OrientedBuilding).Facing
+				facing := ceiling.(world.OrientedBuilding).F
 				R := glm.RotZ(float64(90 * facing.Value()))
 				m = m.Mult(R)
 			}
@@ -548,7 +548,7 @@ func Render(program_state ProgramState) {
 		case world.OrientedBuilding:
 			{
 				// But Oriented buildig have a rotation as well.
-				facing := column.(world.OrientedBuilding).Facing
+				facing := column.(world.OrientedBuilding).F
 				R := glm.RotZ(float64(90 * facing.Value()))
 				m = m.Mult(R)
 			}
@@ -566,4 +566,21 @@ func Render(program_state ProgramState) {
 	//// Draw a monster.
 	//mvp = (program_state.Gl.P).Mult(v).Gl()
 	//program_state.Gl.Monster.Draw(program_state.Gl.Programs, &mvp)
+}
+
+func RenderBuildings(buildings world.Buildings, offset_x, offset_y float64, vp glm.Matrix4, gl_state GlState) {
+	for coords, building := range buildings {
+		m := glm.Vector3{
+			float64(coords.X) + offset_x,
+			float64(coords.Y) + offset_y,
+			0,
+		}.Translation()
+		facer, ok := building.(world.Facer)
+		if ok {
+			R := glm.RotZ(float64(90 * facer.Facing().Value()))
+			m = m.Mult(R)
+		}
+		mvp := vp.Mult(m).Gl()
+		gl_state.Shapes[building.Model()].Draw(gl_state.Programs, &mvp)
+	}
 }
