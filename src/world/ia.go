@@ -25,7 +25,7 @@ import (
 
 // Actions are executed by actors.  Actors are the subject of the action.  If the
 // player wears a helmet, the player is the subject.  If a trap fires an arrow, the
-// trap is the object.  Note that a trap is not a creature, but it is an actor.
+// trap is the subject.  Note that a trap is not a creature, but it is an actor.
 // Every actor has a unique identifier.
 type ActorId uint64
 
