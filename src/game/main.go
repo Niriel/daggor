@@ -181,6 +181,9 @@ type ProgramState struct {
 func CommandToAction(command Command, subject_id world.ActorId) world.Action {
 	var action world.Action
 	switch command {
+	// If an action is what an actor does when it's its turn to play, then
+	// maybe we don't want turning to be one.  Moving yes, turning no.  We'll
+	// see.
 	case COMMAND_TURN_LEFT:
 		action = world.ActionTurn{
 			Subject_id: subject_id,
@@ -193,34 +196,29 @@ func CommandToAction(command Command, subject_id world.ActorId) world.Action {
 			Direction:  world.RIGHT(),
 			Steps:      1,
 		}
-	default:
-		{
-			switch command {
-			case COMMAND_FORWARD:
-				action = world.ActionMoveRelative{
-					Subject_id: subject_id,
-					Direction:  world.FRONT(),
-					Steps:      1,
-				}
-			case COMMAND_STRAFE_LEFT:
-				action = world.ActionMoveRelative{
-					Subject_id: subject_id,
-					Direction:  world.LEFT(),
-					Steps:      1,
-				}
-			case COMMAND_BACKWARD:
-				action = world.ActionMoveRelative{
-					Subject_id: subject_id,
-					Direction:  world.BACK(),
-					Steps:      1,
-				}
-			case COMMAND_STRAFE_RIGHT:
-				action = world.ActionMoveRelative{
-					Subject_id: subject_id,
-					Direction:  world.RIGHT(),
-					Steps:      1,
-				}
-			}
+	case COMMAND_FORWARD:
+		action = world.ActionMoveRelative{
+			Subject_id: subject_id,
+			Direction:  world.FRONT(),
+			Steps:      1,
+		}
+	case COMMAND_STRAFE_LEFT:
+		action = world.ActionMoveRelative{
+			Subject_id: subject_id,
+			Direction:  world.LEFT(),
+			Steps:      1,
+		}
+	case COMMAND_BACKWARD:
+		action = world.ActionMoveRelative{
+			Subject_id: subject_id,
+			Direction:  world.BACK(),
+			Steps:      1,
+		}
+	case COMMAND_STRAFE_RIGHT:
+		action = world.ActionMoveRelative{
+			Subject_id: subject_id,
+			Direction:  world.RIGHT(),
+			Steps:      1,
 		}
 	}
 	return action
