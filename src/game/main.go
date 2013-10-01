@@ -178,18 +178,18 @@ type ProgramState struct {
 	World world.World // Immutable, pure.
 }
 
-func CommandToAction(command Command, actor_id world.ActorId) world.Action {
+func CommandToAction(command Command, subject_id world.ActorId) world.Action {
 	var action world.Action
 	switch command {
 	case COMMAND_TURN_LEFT:
 		action = world.ActionTurn{
-			Subject_id: actor_id,
+			Subject_id: subject_id,
 			Direction:  world.LEFT(),
 			Steps:      1,
 		}
 	case COMMAND_TURN_RIGHT:
 		action = world.ActionTurn{
-			Subject_id: actor_id,
+			Subject_id: subject_id,
 			Direction:  world.RIGHT(),
 			Steps:      1,
 		}
@@ -198,25 +198,25 @@ func CommandToAction(command Command, actor_id world.ActorId) world.Action {
 			switch command {
 			case COMMAND_FORWARD:
 				action = world.ActionMoveRelative{
-					Subject_id: actor_id,
+					Subject_id: subject_id,
 					Direction:  world.FRONT(),
 					Steps:      1,
 				}
 			case COMMAND_STRAFE_LEFT:
 				action = world.ActionMoveRelative{
-					Subject_id: actor_id,
+					Subject_id: subject_id,
 					Direction:  world.LEFT(),
 					Steps:      1,
 				}
 			case COMMAND_BACKWARD:
 				action = world.ActionMoveRelative{
-					Subject_id: actor_id,
+					Subject_id: subject_id,
 					Direction:  world.BACK(),
 					Steps:      1,
 				}
 			case COMMAND_STRAFE_RIGHT:
 				action = world.ActionMoveRelative{
-					Subject_id: actor_id,
+					Subject_id: subject_id,
 					Direction:  world.RIGHT(),
 					Steps:      1,
 				}
@@ -224,6 +224,27 @@ func CommandToAction(command Command, actor_id world.ActorId) world.Action {
 		}
 	}
 	return action
+}
+
+func CommandsToAction(commands []Command, subject_id world.ActorId) (world.Action, []Command) {
+	var action_result world.Action
+	commands_result := make([]Command, 0, cap(commands))
+	for _, command := range commands {
+		action := CommandToAction(command, subject_id)
+		if action == nil {
+			commands_result = append(commands_result, command)
+		} else {
+			if action_result == nil {
+				// Keep the first action only, the other are discarded.  It should
+				// not be a big loss anyway as this function is called every frame.
+				// How many keys can you hope to press in 15 milliseconds?
+				action_result = action
+			} else {
+				fmt.Println("Discarded action ", action)
+			}
+		}
+	}
+	return action_result, commands_result
 }
 
 func LevelCommand(level world.Level, position world.Position, command Command) world.Level {
@@ -317,19 +338,9 @@ func LevelCommand(level world.Level, position world.Position, command Command) w
 	return level
 }
 
-func NewProgramState(program_state ProgramState, commands []Command) ProgramState {
-	if len(commands) == 0 {
-		return program_state
-	}
+func ExecuteCommands(program_state ProgramState, commands []Command) ProgramState {
 	for _, command := range commands {
 		switch {
-		case command <= COMMAND_TURN_RIGHT:
-			action := CommandToAction(command, program_state.World.Player_id)
-			if action != nil {
-				program_state.World.Actions = append(program_state.World.Actions, action)
-			} else {
-				fmt.Println("Nil action")
-			}
 		case command < COMMAND_SAVE:
 			player_id := program_state.World.Player_id
 			player := program_state.World.Level.Actors[player_id]
@@ -461,10 +472,20 @@ func OnTick(program_state ProgramState, dt uint64) (ProgramState, bool) {
 		keys := program_state.Gl.GlfwKeyEventList.Freeze()
 		// Analyze the inputs, see what they mean.
 		commands := Commands(keys)
+		// One of these commands may correspond to an action of the player's actor.
+		// We take it out so that we can process it in the IA phase.
+		// The remaining commands are kept for further processing.
+		player_action, commands := CommandsToAction(commands, program_state.World.Player_id)
 		// Evolve the program one step.
-		program_state.World.Time += dt
-		program_state = NewProgramState(program_state, commands)
-		program_state.World = program_state.World.ExecuteActions()
+		program_state.World.Time += dt // No side effect, we own a copy.
+		program_state = ExecuteCommands(program_state, commands)
+		if player_action != nil {
+			var err error
+			program_state.World, err = player_action.Execute(program_state.World)
+			if err != nil {
+				fmt.Println("PlayerAction error:", err)
+			}
+		}
 		// Render on screen.
 		Render(program_state)
 		program_state.Gl.Window.SwapBuffers()

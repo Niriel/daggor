@@ -11,10 +11,9 @@ import (
 type ModelId uint16
 
 type World struct {
-	Player_id ActorId  // Later, there will also be a LevelId too in here.
-	Level     Level    // Later, there will be many.
-	Actions   []Action // IA for the entire world.
-	Time      uint64   // Nanoseconds.
+	Player_id ActorId // Later, there will also be a LevelId too in here.
+	Level     Level   // Later, there will be many.
+	Time      uint64  // Nanoseconds.
 }
 
 func Load() (*World, error) {
@@ -49,7 +48,6 @@ func (world *World) Save() error {
 
 func MakeWorld() World {
 	var world World
-	world = world.ClearActions()
 	player_id := ActorId(0)
 	var player_position Position
 	player_position.X = 0
@@ -60,21 +58,4 @@ func MakeWorld() World {
 	actors[player_id] = player
 	world.Level.Actors = actors
 	return world
-}
-
-func (world World) ClearActions() World {
-	world.Actions = make([]Action, 0, 16)
-	return world
-}
-
-func (world World) ExecuteActions() World {
-	for _, action := range world.Actions {
-		new_world, err := action.Execute(world)
-		if err == nil {
-			world = new_world
-		} else {
-			fmt.Println(action, err)
-		}
-	}
-	return world.ClearActions()
 }
