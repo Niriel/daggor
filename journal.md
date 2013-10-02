@@ -467,4 +467,17 @@ second.  This is to provide granularity for two different things:
    speed.
  * Keeps the game reactive in real-time mode.
 
+A few days later.
+
+I implemented actions.  The game still behaves exactly as it used to, but it
+uses actions under the hood for the movements of the player's character.  It was
+mostly a matter of refactoring.
+
+There is no loop over the non-player actors yet.  I could make it but it would
+not make sense just yet.  That is because actions are instantaneous, things that
+happen between frames.  Actors have no intelligence or memory yet, and there is
+no cool down mechanism that would prevent them from firing an action every
+frame.  So the next step is to implement a simple brain to hold a cool down.
+Actions are not part of the game state, they modify the game state.  The brain,
+however, is part of the game state.
 

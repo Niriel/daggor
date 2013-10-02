@@ -62,6 +62,7 @@ const (
 	WALL_ID
 	COLUMN_ID
 	CEILING_ID
+	MONSTER_ID
 )
 
 type Command int
@@ -87,6 +88,8 @@ const (
 	COMMAND_ROTATE_CEILING_RETROGRADE
 	COMMAND_ROTATE_COLUMN_DIRECT
 	COMMAND_ROTATE_COLUMN_RETROGRADE
+	COMMAND_PLACE_MONSTER
+	COMMAND_REMOVE_MONSTER
 	COMMAND_SAVE
 	COMMAND_LOAD
 )
@@ -135,6 +138,12 @@ func Commands(events []GlfwKeyEvent) []Command {
 				} else {
 					result = append(result, COMMAND_REMOVE_COLUMN)
 				}
+			case glfw.KeyM:
+				if event.mods&glfw.ModShift == 0 {
+					result = append(result, COMMAND_PLACE_MONSTER)
+				} else {
+					result = append(result, COMMAND_REMOVE_MONSTER)
+				}
 			case glfw.KeyLeftBracket:
 				result = append(result, COMMAND_ROTATE_CEILING_DIRECT)
 			case glfw.KeyRightBracket:
@@ -168,9 +177,8 @@ type GlState struct {
 	GlfwKeyEventList *GlfwKeyEventList
 	Programs         glw.Programs
 	P                glm.Matrix4
-	Shapes           [6]glw.Drawable
+	Shapes           [7]glw.Drawable
 	DynaPyramid      glw.StreamDrawable
-	Monster          glw.Drawable
 }
 
 type ProgramState struct {
@@ -332,6 +340,12 @@ func LevelCommand(level world.Level, position world.Position, command Command) w
 			index := facing.Value()
 			level.Walls[index] = level.Walls[index].Delete(here_x, here_y)
 		}
+
+	case COMMAND_PLACE_MONSTER:
+		{
+			monster := world.Actor{Pos: there}
+			level.Actors = level.Actors.Set(1, monster)
+		}
 	}
 	return level
 }
@@ -413,8 +427,8 @@ func main() {
 	program_state.Gl.Shapes[WALL_ID] = glw.Wall(program_state.Gl.Programs)
 	program_state.Gl.Shapes[COLUMN_ID] = glw.Column(program_state.Gl.Programs)
 	program_state.Gl.Shapes[CEILING_ID] = glw.Ceiling(program_state.Gl.Programs)
+	program_state.Gl.Shapes[MONSTER_ID] = glw.Monster(program_state.Gl.Programs)
 	program_state.Gl.DynaPyramid = glw.DynaPyramid(program_state.Gl.Programs)
-	program_state.Gl.Monster = glw.Monster(program_state.Gl.Programs)
 
 	// I do not like the default reference frame of OpenGl.
 	// By default, we look in the direction -z, and y points up.
@@ -524,6 +538,12 @@ func Render(program_state ProgramState) {
 			&program_state.Gl,
 		)
 	}
+	RenderActors(
+		program_state.World.Level.Actors,
+		vp,
+		program_state.Gl,
+		program_state.World.Player_id,
+	)
 
 	//// Stupid render of the one dynamic object.
 	//dyn := program_state.World.Level.Dynamic
@@ -561,5 +581,27 @@ func RenderBuildings(
 		}
 		mvp := vp.Mult(m).Gl()
 		gl_state.Shapes[building.Model()].Draw(gl_state.Programs, &mvp)
+	}
+}
+
+func RenderActors(
+	actors world.Actors,
+	vp glm.Matrix4,
+	gl_state GlState,
+	player_id world.ActorId,
+) {
+	for actor_id, actor := range actors {
+		if actor_id != player_id {
+			// Do not draw the player's avatar.
+			m := glm.Vector3{
+				float64(actor.Pos.X),
+				float64(actor.Pos.Y),
+				0,
+			}.Translation()
+			r := glm.RotZ(float64(90 * actor.Pos.Facing().Value()))
+			m = m.Mult(r)
+			mvp := vp.Mult(m).Gl()
+			gl_state.Shapes[MONSTER_ID].Draw(gl_state.Programs, &mvp)
+		}
 	}
 }

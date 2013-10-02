@@ -30,7 +30,8 @@ import (
 type ActorId uint64
 
 type Actor struct {
-	Pos Position
+	Pos   Position
+	Brain Brain
 }
 
 type Actors map[ActorId]Actor
@@ -65,6 +66,8 @@ type Action interface {
 }
 
 // Wait: That action does nothing.
+// How is that different from a nil action?  Not much.  Except that nil could
+// indicate AI failure while Wait is a deliberate choice, for example.  Must think.
 type ActionWait struct{}
 
 // The Wait action does nothing at all, it does not even increment a time variable.
@@ -136,6 +139,8 @@ func (action ActionMoveRelative) Execute(world World) (World, error) {
 }
 
 // Turn: That action rotates an actor.
+// Should it be an action?  I mean, should it take one turn?  That's left to the
+// user to choose.
 type ActionTurn struct {
 	Subject_id ActorId
 	Direction  RelativeDirection
@@ -152,4 +157,38 @@ func (action ActionTurn) Execute(world World) (World, error) {
 	actors = actors.Set(action.Subject_id, subject)
 	world.Level.Actors = actors
 	return world, nil
+}
+
+// The AI should not fire an action every frame.  Unless that is actually what we
+// want.  There are very neat ways of doing smart things, like Finite State
+// Machines, or better, Behavior Trees.  But before I do that, I need a dirt simple
+// cooldown mechanism.
+
+type Brain struct {
+	Cooldown_timer uint64
+}
+
+func (brain Brain) WarmUp(dt uint64) Brain {
+	if brain.Cooldown_timer != 0 {
+		panic("Brain is already warm.")
+	}
+	brain.Cooldown_timer = dt
+	return brain
+}
+
+func (brain Brain) Cooldown(dt uint64) Brain {
+	if dt > brain.Cooldown_timer {
+		brain.Cooldown_timer = 0
+	} else {
+		brain.Cooldown_timer -= dt
+	}
+	return brain
+}
+
+func DecideAction(subject_id ActorId) Action {
+	return ActionTurn{
+		Subject_id: subject_id,
+		Direction:  LEFT(),
+		Steps:      1,
+	}
 }
