@@ -346,6 +346,12 @@ func LevelCommand(level world.Level, position world.Position, command Command) w
 			monster := world.Actor{Pos: there}
 			level.Actors = level.Actors.Set(1, monster)
 		}
+	case COMMAND_REMOVE_MONSTER:
+		{
+			actors := level.Actors.Copy()
+			delete(actors, 1)
+			level.Actors = actors
+		}
 	}
 	return level
 }
