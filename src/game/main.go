@@ -498,13 +498,36 @@ func OnTick(program_state ProgramState, dt uint64) (ProgramState, bool) {
 		// Evolve the program one step.
 		program_state.World.Time += dt // No side effect, we own a copy.
 		program_state = ExecuteCommands(program_state, commands)
-		if player_action != nil {
+		//
+		actors := program_state.World.Level.Actors
+		player, ok := actors[program_state.World.Player_id]
+		if !ok {
+			panic("Cannot find the player actor.")
+		}
+		if player.Brain.IsCold() && player_action != nil {
 			var err error
 			program_state.World, err = player_action.Execute(program_state.World)
 			if err != nil {
 				fmt.Println("PlayerAction error:", err)
+			} else {
+				// The player character is busy, warm up its brain to prevent it from
+				// playing too fast.
+				actors = program_state.World.Level.Actors
+				player = actors[program_state.World.Player_id]
+				player.Brain = player.Brain.WarmUp(500000000)
+				actors = actors.Set(program_state.World.Player_id, player)
+				program_state.World.Level.Actors = actors // Mutation.
+				fmt.Println("Warmup")
 			}
 		}
+		// Cooldown brain.
+		// I am not sure I should apply the cooldown on the very first tick an
+		// action is fired.
+		actors = program_state.World.Level.Actors
+		player = actors[program_state.World.Player_id]
+		player.Brain = player.Brain.CoolDown(dt)
+		actors = actors.Set(program_state.World.Player_id, player)
+		program_state.World.Level.Actors = actors // Mutation.
 		// Render on screen.
 		Render(program_state)
 		program_state.Gl.Window.SwapBuffers()

@@ -481,3 +481,33 @@ frame.  So the next step is to implement a simple brain to hold a cool down.
 Actions are not part of the game state, they modify the game state.  The brain,
 however, is part of the game state.
 
+How many creatures per tile?
+----------------------------
+I need to think here.
+It is tempting to say that there can be only one creature per tile.  However,
+this prevents games like Dungeon Master, in which the party of the player fights
+a party of monster.  If the player can have an entire party of characters on a
+tile, so should the computer.  Also, it may not be actually possible to prevent
+two creatures to occupy the same tile.  For example, if the player character is
+teleported across a dungeon on a tile which happens to already contain a
+creature.  It is inadmissible to prevent such teleportation because it could be
+game breaking.  It is also inadmissible to remove the creature on the target
+tile because it also could be game breaking.  So, tiles can contain several
+creatures.  And if they contain more than 1, I just have to let them able to
+contain an infinity.  The engine does what you say, just do not say anything
+stupid.  Your game, your AI, your collision response code, will say what is
+possible in your world or not.  I think it could be perfectly valid to fight a
+swarm of insects or rodents.
+
+Each animal can have a volume.  A tile can contain up to a given volume.  If
+that volume is exceeded, and if there are more than one creature, then the
+smaller creature is pushed away.  Or one of the smallest.  So you could have
+one elephant on a tile, or maybe one elephant and two mice (ouch), but not two
+elephants.
+
+That is fine, except that I have no idea how I would handle formations.  Who
+can attack who, all that?  Nah, I think that for a first version, I will stick
+to the simple one creature per tile.  I have yet to solve the problem of
+teleportation.  Maybe later, that is game dependent.
+
+So I decided.  1.

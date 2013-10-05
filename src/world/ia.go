@@ -176,13 +176,17 @@ func (brain Brain) WarmUp(dt uint64) Brain {
 	return brain
 }
 
-func (brain Brain) Cooldown(dt uint64) Brain {
+func (brain Brain) CoolDown(dt uint64) Brain {
 	if dt > brain.Cooldown_timer {
 		brain.Cooldown_timer = 0
 	} else {
 		brain.Cooldown_timer -= dt
 	}
 	return brain
+}
+
+func (brain Brain) IsCold() bool {
+	return brain.Cooldown_timer == 0
 }
 
 func DecideAction(subject_id ActorId) Action {
