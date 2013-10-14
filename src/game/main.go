@@ -345,6 +345,7 @@ func LevelCommand(level world.Level, position world.Position, command Command) w
 		{
 			monster := world.Actor{Pos: there}
 			level.Actors = level.Actors.Set(1, monster)
+
 		}
 	case COMMAND_REMOVE_MONSTER:
 		{
@@ -455,7 +456,6 @@ func main() {
 	gl.FrontFace(gl.CCW)
 
 	program_state.World = world.MakeWorld()
-
 	MainLoop(program_state)
 }
 
@@ -497,42 +497,72 @@ func OnTick(program_state ProgramState, dt uint64) (ProgramState, bool) {
 		player_action, commands := CommandsToAction(commands, program_state.World.Player_id)
 		// Evolve the program one step.
 		program_state.World.Time += dt // No side effect, we own a copy.
+		// $$$ THERE COULD BE SIDE EFFECTS HERE ACTUALLY:  IF I GAVE A POINTER
+		// TO THE WORLD OR PROGRAM STATE TO SOMETHING.  NEED TO CORRECT THAT.
 		program_state = ExecuteCommands(program_state, commands)
 		//
-		actors := program_state.World.Level.Actors
-		player, ok := actors[program_state.World.Player_id]
-		if !ok {
-			panic("Cannot find the player actor.")
-		}
-		if player.Brain.IsCold() && player_action != nil {
-			var err error
-			program_state.World, err = player_action.Execute(program_state.World)
-			if err != nil {
-				fmt.Println("PlayerAction error:", err)
-			} else {
-				// The player character is busy, warm up its brain to prevent it from
-				// playing too fast.
-				actors = program_state.World.Level.Actors
-				player = actors[program_state.World.Player_id]
-				player.Brain = player.Brain.WarmUp(500000000)
-				actors = actors.Set(program_state.World.Player_id, player)
-				program_state.World.Level.Actors = actors // Mutation.
-				fmt.Println("Warmup")
-			}
-		}
-		// Cooldown brain.
-		// I am not sure I should apply the cooldown on the very first tick an
-		// action is fired.
-		actors = program_state.World.Level.Actors
-		player = actors[program_state.World.Player_id]
-		player.Brain = player.Brain.CoolDown(dt)
-		actors = actors.Set(program_state.World.Player_id, player)
-		program_state.World.Level.Actors = actors // Mutation.
+		program_state.World = RunAI(program_state.World, player_action)
 		// Render on screen.
 		Render(program_state)
 		program_state.Gl.Window.SwapBuffers()
 	}
 	return program_state, keep_ticking
+}
+
+func RunAI(w world.World, player_action world.Action) world.World {
+	var action world.Action
+	// It's like on a board game.  Every one plays when it is their turn.
+	// This function is called every frame.
+
+	// Temporary: Any creature that is not scheduled yet is added to the
+	// scheduler.
+	schedule := w.Actor_schedule
+	for actor_id := range w.Level.Actors {
+		index := schedule.PosActorId(actor_id)
+		if index == -1 {
+			fmt.Println("Force scheduling", actor_id)
+			fmt.Println(schedule)
+			schedule = schedule.Add(actor_id, w.Time)
+			fmt.Println(schedule)
+		}
+	}
+	w = w.SetActorSchedule(schedule)
+
+	for {
+		actor_time, ok := w.Actor_schedule.Next(w.Time)
+		if !ok {
+			// Actions can modify the list of actors, so I cannot loop over
+			// all the actors.  This is why I break the loop this way.
+			break
+		}
+		new_schedule, ok := w.Actor_schedule.Remove(actor_time)
+		if !ok {
+			panic("Could not find actor to remove from scheduler")
+		}
+		w = w.SetActorSchedule(new_schedule)
+		if actor_time.Actor_id == w.Player_id {
+			action = player_action
+		} else {
+			action = world.DecideAction(actor_time.Actor_id)
+		}
+		if action != nil {
+			new_schedule = new_schedule.Add(actor_time.Actor_id, actor_time.Time+500000000)
+			w = w.SetActorSchedule(new_schedule)
+			w, _ = action.Execute(w)
+		} else {
+			// Nil actions should only happen for the player.  The player is the
+			// only actor who can decide not to act.  All other actors decide
+			// an action, even if it is just a waiting action.
+			if actor_time.Actor_id == w.Player_id {
+				// Reschedule the player for next turn.
+				new_schedule = new_schedule.Add(actor_time.Actor_id, w.Time+1)
+				w = w.SetActorSchedule(new_schedule)
+			} else {
+				panic("Only the player is allowed to idle.")
+			}
+		}
+	}
+	return w
 }
 
 func Render(program_state ProgramState) {
@@ -581,9 +611,6 @@ func Render(program_state ProgramState) {
 	//pyr := program_state.Gl.DynaPyramid
 	//pyr.UpdateMesh(dyn.Mesh(program_state.World.Time))
 	//pyr.Draw(program_state.Gl.Programs, &mvp)
-	//// Draw a monster.
-	//mvp = (program_state.Gl.P).Mult(v).Gl()
-	//program_state.Gl.Monster.Draw(program_state.Gl.Programs, &mvp)
 }
 
 func RenderBuildings(

@@ -11,9 +11,10 @@ import (
 type ModelId uint16
 
 type World struct {
-	Player_id ActorId // Later, there will also be a LevelId too in here.
-	Level     Level   // Later, there will be many.
-	Time      uint64  // Nanoseconds.
+	Player_id      ActorId // Later, there will also be a LevelId too in here.
+	Level          Level   // Later, there will be many.
+	Time           uint64  // Nanoseconds.
+	Actor_schedule ActorSchedule
 }
 
 func Load() (*World, error) {
@@ -57,5 +58,16 @@ func MakeWorld() World {
 	actors := make(Actors, 1)
 	actors[player_id] = player
 	world.Level.Actors = actors
+	world.Actor_schedule = MakeActorSchedule()
+	return world
+}
+
+func (world World) SetTime(time uint64) World {
+	world.Time = time
+	return world
+}
+
+func (world World) SetActorSchedule(actor_schedule ActorSchedule) World {
+	world.Actor_schedule = actor_schedule
 	return world
 }
