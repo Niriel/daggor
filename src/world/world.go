@@ -49,16 +49,20 @@ func (world *World) Save() error {
 
 func MakeWorld() World {
 	var world World
-	player_id := ActorId(0)
-	var player_position Position
-	player_position.X = 0
-	player_position.Y = 0
-	player_position.F = EAST()
-	player := Actor{Pos: player_position}
-	actors := make(Actors, 1)
-	actors[player_id] = player
-	world.Level.Actors = actors
+	world.Level = MakeLevel()
 	world.Actor_schedule = MakeActorSchedule()
+
+	// Place the player in the world.
+	level := world.Level
+	creature := Creature{F: EAST()}
+	actors, actor_id, _ := level.Actors.Spawn()
+	creatures, creature_id := level.Creatures.Add(creature)
+	level.Actors = actors
+	level.Creatures = creatures
+	level.Creature_actor, _ = level.Creature_actor.Add(creature_id, actor_id)
+	level.Creature_location, _ = level.Creature_location.Add(creature_id, Location{})
+	world.Level = level
+	world.Player_id = actor_id
 	return world
 }
 

@@ -29,23 +29,52 @@ import (
 // Every actor has a unique identifier.
 type ActorId uint64
 
-type Actor struct {
-	Pos Position
+type Actor struct{}
+
+func MakeActor() Actor {
+	return Actor{}
 }
 
-type Actors map[ActorId]Actor
+type Actors struct {
+	Next_id ActorId
+	Content map[ActorId]Actor
+}
 
-func (src Actors) Copy() Actors {
-	dst := make(Actors, len(src))
-	for key, value := range src {
-		dst[key] = value
+func MakeActors() Actors {
+	return Actors{
+		Content: make(map[ActorId]Actor),
 	}
-	return dst
+}
+
+func (self Actors) Copy() Actors {
+	result := Actors{
+		Next_id: self.Next_id,
+		Content: make(map[ActorId]Actor),
+	}
+	for key, value := range self.Content {
+		result.Content[key] = value
+	}
+	return result
+}
+
+func (self Actors) Spawn() (Actors, ActorId, Actor) {
+	actor_id := self.Next_id
+	actor := MakeActor()
+	actors := self.Set(actor_id, actor)
+	actors.Next_id += 1
+	return actors, actor_id, actor
+}
+
+func (self Actors) Add(actor Actor) (Actors, ActorId) {
+	actor_id := self.Next_id
+	actors := self.Set(actor_id, actor)
+	actors.Next_id += 1
+	return actors, actor_id
 }
 
 func (actors Actors) Set(actor_id ActorId, actor Actor) Actors {
 	new_actors := actors.Copy()
-	new_actors[actor_id] = actor
+	new_actors.Content[actor_id] = actor
 	return new_actors
 }
 
@@ -82,26 +111,46 @@ type ActionMoveAbsolute struct {
 }
 
 func (action ActionMoveAbsolute) Execute(world World) (World, error) {
-	actors := world.Level.Actors
-	subject, ok := actors[action.Subject_id]
-	if !ok {
-		return world, fmt.Errorf("Actor %v not found.", action.Subject_id)
+	// Trivial case: no movement.
+	if action.Steps <= 0 {
+		return world, nil
 	}
-	new_loc := subject.Pos.Location
+	// Only creatures can move.
+	creature_id, ok := world.Level.Creature_actor.GetCreature(action.Subject_id)
+	if !ok {
+		return world, fmt.Errorf(
+			"Actor %v does not have a corresponding creature.",
+			action.Subject_id,
+		)
+	}
+	// We start computing the new location from the current one.
+	new_loc, ok := world.Level.Creature_location.GetLocation(creature_id)
+	if !ok {
+		return world, fmt.Errorf(
+			"Actor %v creature %v does not have a corresponding position.",
+			action.Subject_id,
+			creature_id,
+		)
+	}
 	for step_id := 0; step_id < action.Steps; step_id++ {
 		if world.Level.IsPassable(new_loc, action.Direction) {
 			new_loc = new_loc.MoveAbsolute(action.Direction, 1)
 		} else {
-			return world, fmt.Errorf("Unpassable.")
+			return world, fmt.Errorf(
+				"Actor %v creature %v cannot pass %v.",
+				action.Subject_id,
+				creature_id,
+				new_loc,
+			)
 		}
 	}
-	// Subject is a value, not a pointer, we are free to modify it.
-	subject.Pos = subject.Pos.SetLocation(new_loc) // Preserve facing.
-	// However, actors is a map and therefore contains a pointer, we need a new
-	// map.
-	actors = actors.Set(action.Subject_id, subject)
-	// World is a value, we can modify it.
-	world.Level.Actors = actors
+	// Move the creature.
+	locations, err := world.Level.Creature_location.Move(creature_id, new_loc)
+	if err != nil {
+		return world, err
+	}
+	// World was passed by value, we can modify it.
+	world.Level.Creature_location = locations
 	return world, nil
 }
 
@@ -113,27 +162,52 @@ type ActionMoveRelative struct {
 }
 
 func (action ActionMoveRelative) Execute(world World) (World, error) {
-	actors := world.Level.Actors
-	subject, ok := actors[action.Subject_id]
-	if !ok {
-		return world, fmt.Errorf("Actor %v not found.", action.Subject_id)
+	if action.Steps <= 0 {
+		return world, nil
 	}
-	new_loc := subject.Pos.Location
-	direction := subject.Pos.F.Add(action.Direction)
+	creature_id, ok := world.Level.Creature_actor.GetCreature(action.Subject_id)
+	if !ok {
+		return world, fmt.Errorf(
+			"Actor %v does not have a corresponding creature.",
+			action.Subject_id,
+		)
+	}
+	creature, ok := world.Level.Creatures.Get(creature_id)
+	if !ok {
+		return world, fmt.Errorf(
+			"Actor %v creature %v does not have a corresponding creature.",
+			action.Subject_id,
+			creature_id,
+		)
+	}
+	direction := creature.F.Add(action.Direction)
+	new_loc, ok := world.Level.Creature_location.GetLocation(creature_id)
+	if !ok {
+		return world, fmt.Errorf(
+			"Actor %v creature %v does not have a corresponding position.",
+			action.Subject_id,
+			creature_id,
+		)
+	}
 	for step_id := 0; step_id < action.Steps; step_id++ {
 		if world.Level.IsPassable(new_loc, direction) {
 			new_loc = new_loc.MoveAbsolute(direction, 1)
 		} else {
-			return world, fmt.Errorf("Unpassable.")
+			return world, fmt.Errorf(
+				"Actor %v creature %v cannot pass %v.",
+				action.Subject_id,
+				creature_id,
+				new_loc,
+			)
 		}
 	}
-	// Subject is a value, not a pointer, we are free to modify it.
-	subject.Pos = subject.Pos.SetLocation(new_loc) // Preserve facing.
-	// However, actors is a map and therefore contains a pointer, we need a new
-	// map.
-	actors = actors.Set(action.Subject_id, subject)
-	// World is a value, we can modify it.
-	world.Level.Actors = actors
+	// Move the creature.
+	locations, err := world.Level.Creature_location.Move(creature_id, new_loc)
+	if err != nil {
+		return world, err
+	}
+	// World was passed by value, we can modify it.
+	world.Level.Creature_location = locations
 	return world, nil
 }
 
@@ -147,14 +221,32 @@ type ActionTurn struct {
 }
 
 func (action ActionTurn) Execute(world World) (World, error) {
-	actors := world.Level.Actors
-	subject, ok := actors[action.Subject_id]
-	if !ok {
-		return world, fmt.Errorf("Actor %v not found.", action.Subject_id)
+	if action.Steps <= 0 {
+		return world, nil
 	}
-	subject.Pos = subject.Pos.Turn(action.Direction, action.Steps)
-	actors = actors.Set(action.Subject_id, subject)
-	world.Level.Actors = actors
+	creature_id, ok := world.Level.Creature_actor.GetCreature(action.Subject_id)
+	if !ok {
+		return world, fmt.Errorf(
+			"Actor %v does not have a corresponding creature.",
+			action.Subject_id,
+		)
+	}
+	creature, ok := world.Level.Creatures.Get(creature_id)
+	if !ok {
+		return world, fmt.Errorf(
+			"Actor %v creature %v does not have a corresponding creature.",
+			action.Subject_id,
+			creature_id,
+		)
+	}
+	// Payload.
+	facing := creature.F
+	for step_id := 0; step_id < action.Steps; step_id++ {
+		facing = facing.Add(action.Direction)
+	}
+	creature.F = facing
+	// /Payload.
+	world.Level.Creatures = world.Level.Creatures.Set(creature_id, creature)
 	return world, nil
 }
 
@@ -169,8 +261,8 @@ func DecideAction(subject_id ActorId) Action {
 //
 
 type ActorTime struct {
-	Actor_id        ActorId
 	Time            uint64
+	Actor_id        ActorId
 	Stability_index uint64 // To ensure stable sorting.
 }
 

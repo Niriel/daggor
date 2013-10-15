@@ -343,15 +343,32 @@ func LevelCommand(level world.Level, position world.Position, command Command) w
 
 	case COMMAND_PLACE_MONSTER:
 		{
-			monster := world.Actor{Pos: there}
-			level.Actors = level.Actors.Set(1, monster)
-
+			creature := world.MakeCreature()
+			creature.F = position.F
+			creatures, creature_id := level.Creatures.Add(creature)
+			fmt.Println("Creatures before:", level.Creatures)
+			fmt.Println("Creatures now:", creatures)
+			actors, actor_id := level.Actors.Add(world.MakeActor())
+			fmt.Println("Actors before:", level.Actors)
+			fmt.Println("Actors now:", actors)
+			creature_actors, err := level.Creature_actor.Add(creature_id, actor_id)
+			if err != nil {
+				fmt.Println(err)
+				break
+			}
+			creature_locations, err := level.Creature_location.Add(creature_id, there.ToLocation())
+			if err != nil {
+				fmt.Println(err)
+				break
+			}
+			level.Creatures = creatures
+			level.Actors = actors
+			level.Creature_actor = creature_actors
+			level.Creature_location = creature_locations
 		}
 	case COMMAND_REMOVE_MONSTER:
 		{
-			actors := level.Actors.Copy()
-			delete(actors, 1)
-			level.Actors = actors
+			fmt.Printf("Not implemented.")
 		}
 	}
 	return level
@@ -361,9 +378,11 @@ func ExecuteCommands(program_state ProgramState, commands []Command) ProgramStat
 	for _, command := range commands {
 		switch {
 		case command < COMMAND_SAVE:
-			player_id := program_state.World.Player_id
-			player := program_state.World.Level.Actors[player_id]
-			position := player.Pos
+			position, ok := program_state.World.Level.ActorPosition(program_state.World.Player_id)
+			if !ok {
+				break
+			}
+			// Modify the world around the player character.
 			program_state.World.Level = LevelCommand(program_state.World.Level, position, command)
 		case command == COMMAND_SAVE:
 			err := program_state.World.Save()
@@ -517,7 +536,7 @@ func RunAI(w world.World, player_action world.Action) world.World {
 	// Temporary: Any creature that is not scheduled yet is added to the
 	// scheduler.
 	schedule := w.Actor_schedule
-	for actor_id := range w.Level.Actors {
+	for actor_id := range w.Level.Actors.Content {
 		index := schedule.PosActorId(actor_id)
 		if index == -1 {
 			fmt.Println("Force scheduling", actor_id)
@@ -546,9 +565,13 @@ func RunAI(w world.World, player_action world.Action) world.World {
 			action = world.DecideAction(actor_time.Actor_id)
 		}
 		if action != nil {
-			new_schedule = new_schedule.Add(actor_time.Actor_id, actor_time.Time+500000000)
+			var err error
+			new_schedule = new_schedule.Add(actor_time.Actor_id, actor_time.Time+100000000)
 			w = w.SetActorSchedule(new_schedule)
-			w, _ = action.Execute(w)
+			w, err = action.Execute(w)
+			if err != nil {
+				fmt.Println(err)
+			}
 		} else {
 			// Nil actions should only happen for the player.  The player is the
 			// only actor who can decide not to act.  All other actors decide
@@ -568,7 +591,12 @@ func RunAI(w world.World, player_action world.Action) world.World {
 func Render(program_state ProgramState) {
 	gl.ClearColor(0.0, 0.0, 0.4, 0.0)
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-	v := ViewMatrix(program_state.World.Level.Actors[program_state.World.Player_id].Pos)
+	actor_id := program_state.World.Player_id
+	position, ok := program_state.World.Level.ActorPosition(actor_id)
+	if !ok {
+		panic("Could not find player's character position.")
+	}
+	v := ViewMatrix(position)
 	vp := (program_state.Gl.P).Mult(v)
 	RenderBuildings(
 		&program_state.World.Level.Floors,
@@ -598,7 +626,7 @@ func Render(program_state ProgramState) {
 		)
 	}
 	RenderActors(
-		program_state.World.Level.Actors,
+		program_state.World.Level,
 		vp,
 		program_state.Gl,
 		program_state.World.Player_id,
@@ -641,20 +669,23 @@ func RenderBuildings(
 }
 
 func RenderActors(
-	actors world.Actors,
+	level world.Level,
 	vp glm.Matrix4,
 	gl_state GlState,
 	player_id world.ActorId,
 ) {
-	for actor_id, actor := range actors {
-		if actor_id != player_id {
-			// Do not draw the player's avatar.
+	for actor_id := range level.Actors.Content {
+		if actor_id != player_id { // Do not draw the player's avatar.
+			position, ok := level.ActorPosition(actor_id)
+			if !ok {
+				continue
+			}
 			m := glm.Vector3{
-				float64(actor.Pos.X),
-				float64(actor.Pos.Y),
+				float64(position.X),
+				float64(position.Y),
 				0,
 			}.Translation()
-			r := glm.RotZ(float64(90 * actor.Pos.Facing().Value()))
+			r := glm.RotZ(float64(90 * position.F.Value()))
 			m = m.Mult(r)
 			mvp := vp.Mult(m).Gl()
 			gl_state.Shapes[MONSTER_ID].Draw(gl_state.Programs, &mvp)

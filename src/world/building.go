@@ -86,6 +86,10 @@ func (building OrientedBuilding) Facing() AbsoluteDirection {
 
 type Buildings map[Location]Building
 
+func MakeBuildings() Buildings {
+	return make(Buildings)
+}
+
 // Making copies is required to produce updated version of maps.
 func (src Buildings) Copy() Buildings {
 	dst := make(Buildings, len(src))
