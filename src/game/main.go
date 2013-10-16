@@ -7,6 +7,7 @@ import (
 	glfw "github.com/go-gl/glfw3"
 	"glm"
 	"glw"
+	"ia"
 	"runtime"
 	"time"
 	"world"
@@ -186,44 +187,44 @@ type ProgramState struct {
 	World world.World // Immutable, pure.
 }
 
-func CommandToAction(command Command, subject_id world.ActorId) world.Action {
-	var action world.Action
+func CommandToAction(command Command, subject_id world.ActorId) ia.Action {
+	var action ia.Action
 	switch command {
 	// If an action is what an actor does when it's its turn to play, then
 	// maybe we don't want turning to be one.  Moving yes, turning no.  We'll
 	// see.
 	case COMMAND_TURN_LEFT:
-		action = world.ActionTurn{
+		action = ia.ActionTurn{
 			Subject_id: subject_id,
 			Direction:  world.LEFT(),
 			Steps:      1,
 		}
 	case COMMAND_TURN_RIGHT:
-		action = world.ActionTurn{
+		action = ia.ActionTurn{
 			Subject_id: subject_id,
 			Direction:  world.RIGHT(),
 			Steps:      1,
 		}
 	case COMMAND_FORWARD:
-		action = world.ActionMoveRelative{
+		action = ia.ActionMoveRelative{
 			Subject_id: subject_id,
 			Direction:  world.FRONT(),
 			Steps:      1,
 		}
 	case COMMAND_STRAFE_LEFT:
-		action = world.ActionMoveRelative{
+		action = ia.ActionMoveRelative{
 			Subject_id: subject_id,
 			Direction:  world.LEFT(),
 			Steps:      1,
 		}
 	case COMMAND_BACKWARD:
-		action = world.ActionMoveRelative{
+		action = ia.ActionMoveRelative{
 			Subject_id: subject_id,
 			Direction:  world.BACK(),
 			Steps:      1,
 		}
 	case COMMAND_STRAFE_RIGHT:
-		action = world.ActionMoveRelative{
+		action = ia.ActionMoveRelative{
 			Subject_id: subject_id,
 			Direction:  world.RIGHT(),
 			Steps:      1,
@@ -232,8 +233,8 @@ func CommandToAction(command Command, subject_id world.ActorId) world.Action {
 	return action
 }
 
-func CommandsToAction(commands []Command, subject_id world.ActorId) (world.Action, []Command) {
-	var action_result world.Action
+func CommandsToAction(commands []Command, subject_id world.ActorId) (ia.Action, []Command) {
+	var action_result ia.Action
 	commands_result := make([]Command, 0, cap(commands))
 	for _, command := range commands {
 		action := CommandToAction(command, subject_id)
@@ -346,11 +347,7 @@ func LevelCommand(level world.Level, position world.Position, command Command) w
 			creature := world.MakeCreature()
 			creature.F = position.F
 			creatures, creature_id := level.Creatures.Add(creature)
-			fmt.Println("Creatures before:", level.Creatures)
-			fmt.Println("Creatures now:", creatures)
 			actors, actor_id := level.Actors.Add(world.MakeActor())
-			fmt.Println("Actors before:", level.Actors)
-			fmt.Println("Actors now:", actors)
 			creature_actors, err := level.Creature_actor.Add(creature_id, actor_id)
 			if err != nil {
 				fmt.Println(err)
@@ -528,8 +525,8 @@ func OnTick(program_state ProgramState, dt uint64) (ProgramState, bool) {
 	return program_state, keep_ticking
 }
 
-func RunAI(w world.World, player_action world.Action) world.World {
-	var action world.Action
+func RunAI(w world.World, player_action ia.Action) world.World {
+	var action ia.Action
 	// It's like on a board game.  Every one plays when it is their turn.
 	// This function is called every frame.
 
@@ -562,7 +559,7 @@ func RunAI(w world.World, player_action world.Action) world.World {
 		if actor_time.Actor_id == w.Player_id {
 			action = player_action
 		} else {
-			action = world.DecideAction(actor_time.Actor_id)
+			action = ia.DecideAction(actor_time.Actor_id)
 		}
 		if action != nil {
 			var err error
