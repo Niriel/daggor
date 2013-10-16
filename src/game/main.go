@@ -622,11 +622,18 @@ func Render(program_state ProgramState) {
 			&program_state.Gl,
 		)
 	}
-	RenderActors(
-		program_state.World.Level,
+
+	creature_id, ok := program_state.World.Level.Creature_actor.GetCreature(actor_id)
+	creature_locations := program_state.World.Level.Creature_location
+	if ok {
+		// Do not render the player creature.
+		creature_locations, _ = creature_locations.RemoveCreature(creature_id)
+	}
+	RenderCreatures(
+		creature_locations,
+		program_state.World.Level.Creatures,
 		vp,
 		program_state.Gl,
-		program_state.World.Player_id,
 	)
 
 	//// Stupid render of the one dynamic object.
@@ -665,25 +672,20 @@ func RenderBuildings(
 	}
 }
 
-func RenderActors(
-	level world.Level,
+func RenderCreatures(
+	creature_locations world.CreatureLocation,
+	creatures world.Creatures,
 	vp glm.Matrix4,
 	gl_state GlState,
-	player_id world.ActorId,
 ) {
-	for actor_id := range level.Actors.Content {
-		if actor_id != player_id { // Do not draw the player's avatar.
-			position, ok := level.ActorPosition(actor_id)
-			if !ok {
-				continue
-			}
+	for creature_id, creature_location := range creature_locations.Cl {
+		creature, ok := creatures.Get(creature_id)
+		if ok {
 			m := glm.Vector3{
-				float64(position.X),
-				float64(position.Y),
+				float64(creature_location.X),
+				float64(creature_location.Y),
 				0,
-			}.Translation()
-			r := glm.RotZ(float64(90 * position.F.Value()))
-			m = m.Mult(r)
+			}.Translation().Mult(glm.RotZ(float64(90 * creature.F.Value())))
 			mvp := vp.Mult(m).Gl()
 			gl_state.Shapes[MONSTER_ID].Draw(gl_state.Programs, &mvp)
 		}
