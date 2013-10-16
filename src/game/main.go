@@ -596,30 +596,30 @@ func Render(program_state ProgramState) {
 	v := ViewMatrix(position)
 	vp := (program_state.Gl.P).Mult(v)
 	RenderBuildings(
-		&program_state.World.Level.Floors,
+		program_state.World.Level.Floors,
 		0, 0,
-		&vp, nil,
-		&program_state.Gl,
+		vp, nil,
+		program_state.Gl,
 	)
 	RenderBuildings(
-		&program_state.World.Level.Ceilings,
+		program_state.World.Level.Ceilings,
 		0, 0,
-		&vp, nil,
-		&program_state.Gl,
+		vp, nil,
+		program_state.Gl,
 	)
 	RenderBuildings(
-		&program_state.World.Level.Columns,
+		program_state.World.Level.Columns,
 		-.5, -.5,
-		&vp, nil,
-		&program_state.Gl,
+		vp, nil,
+		program_state.Gl,
 	)
 	for facing := 0; facing < 4; facing++ {
 		default_r := glm.RotZ(float64(90 * facing))
 		RenderBuildings(
-			&program_state.World.Level.Walls[facing],
+			program_state.World.Level.Walls[facing],
 			0, 0,
-			&vp, &default_r,
-			&program_state.Gl,
+			vp, &default_r,
+			program_state.Gl,
 		)
 	}
 
@@ -646,12 +646,13 @@ func Render(program_state ProgramState) {
 }
 
 func RenderBuildings(
-	buildings *world.Buildings,
+	buildings world.Buildings,
 	offset_x, offset_y float64,
-	vp, default_r *glm.Matrix4,
-	gl_state *GlState,
+	vp glm.Matrix4,
+	default_r *glm.Matrix4, // Can be nil.
+	gl_state GlState,
 ) {
-	for coords, building := range *buildings {
+	for coords, building := range buildings {
 		m := glm.Vector3{
 			float64(coords.X) + offset_x,
 			float64(coords.Y) + offset_y,
