@@ -13,11 +13,29 @@ import (
 
 var ENDIANNES binary.ByteOrder
 
+func isLittleEndian() bool {
+	// Credit matt kane, taken from his gosndfile project.
+	// https://groups.google.com/forum/#!msg/golang-nuts/3GEzwKfRRQw/D1bMbFP-ClAJ
+	// https://github.com/mkb218/gosndfile
+	var i int32 = 0x01020304
+	u := unsafe.Pointer(&i)
+	pb := (*byte)(u)
+	b := *pb
+	return (b == 0x04)
+}
+
 func init() {
 	// Here, somehow detect the endianness of the system.
 	// We need to encode vertex data before sending it to OpenGL, and OpenGL
 	// uses the endianness of the system on which we are running.
-	ENDIANNES = binary.LittleEndian
+	// Why encode? Because we do not want to care about the way Go allign its
+	// data in memory.  Encoding in binary ensures that the data has no gap or
+	// padding, which is easier to manage.
+	if isLittleEndian() {
+		ENDIANNES = binary.LittleEndian
+	} else {
+		ENDIANNES = binary.BigEndian
+	}
 }
 
 type GlEncoder interface {
@@ -27,6 +45,7 @@ type GlEncoder interface {
 type ElementIndexFormat interface {
 	GlEncoder
 	Len() int
+	GlType() gl.GLenum
 }
 
 type VertexFormat interface {
@@ -105,6 +124,27 @@ func (self ElementIndicesUbyte) GlEncode() ([]byte, error) {
 
 func (self ElementIndicesUbyte) Len() int {
 	return len(self)
+}
+func (self ElementIndicesUbyte) GlType() gl.GLenum {
+	return gl.UNSIGNED_BYTE
+}
+
+type Drawer interface {
+	Draw()
+}
+
+type DrawElements struct {
+	Primitive gl.GLenum
+	Elements  ElementIndexFormat
+}
+
+func (self DrawElements) Draw() {
+	gl.DrawElements(
+		self.Primitive,
+		self.Elements.Len(),
+		self.Elements.GlType(),
+		nil, // Indices are in a buffer, never give them directly.
+	)
 }
 
 func MakeDrawable(programs Programs, srefs ShaderRefs, vertices VertexFormat, indices ElementIndexFormat, binding_point uint) Drawable {
