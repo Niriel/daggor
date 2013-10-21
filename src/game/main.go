@@ -466,8 +466,7 @@ func main() {
 	program_state.Gl.Window.SetKeyCallback(program_state.Gl.GlfwKeyEventList.Callback)
 
 	program_state.Gl.Window.MakeContextCurrent()
-	ec := gl.Init()
-	if ec != 0 {
+	if ec := gl.Init(); ec != 0 {
 		panic(fmt.Sprintf("OpenGL initialization failed with code %v.", ec))
 	}
 	// For some reason, here, the OpenGL error flag for me contains "Invalid enum".
@@ -477,9 +476,8 @@ func main() {
 	//     https://github.com/go-gl/glfw3/issues/50
 	// Maybe I should not even ask for a core profile anyway.
 	// What are the advantages are asking for a core profile?
-	err = glw.CheckGlError()
-	if err != nil {
-		err.(*glw.GlError).Description = "OpenGL has this error right after init for some reason."
+	if err := glw.CheckGlError(); err != nil {
+		err.Description = "OpenGL has this error right after init for some reason."
 		fmt.Println(err)
 	}
 	major := program_state.Gl.Window.GetAttribute(glfw.ContextVersionMajor)
@@ -499,7 +497,7 @@ func main() {
 	program_state.Gl.Shapes[WALL_ID] = glw.Wall(program_state.Gl.Programs, UNIFORM_BINDING)
 	program_state.Gl.Shapes[COLUMN_ID] = glw.Column(program_state.Gl.Programs, UNIFORM_BINDING)
 	program_state.Gl.Shapes[CEILING_ID] = glw.Ceiling(program_state.Gl.Programs, UNIFORM_BINDING)
-	program_state.Gl.Shapes[MONSTER_ID] = glw.Monster(program_state.Gl.Programs)
+	program_state.Gl.Shapes[MONSTER_ID] = glw.Monster(program_state.Gl.Programs, UNIFORM_BINDING)
 	program_state.Gl.DynaPyramid = glw.DynaPyramid(program_state.Gl.Programs)
 
 	// I do not like the default reference frame of OpenGl.

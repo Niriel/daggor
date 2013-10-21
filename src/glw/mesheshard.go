@@ -1,5 +1,6 @@
 // This module contains the code for hard coded meshes used during
 // the development and debug phases of the game.
+// This is a mess.  Deal with it.
 
 package glw
 
@@ -130,24 +131,29 @@ func (self ElementIndicesUbyte) GlType() gl.GLenum {
 }
 
 type Drawer interface {
-	Draw()
+	Draw() *GlError
 }
 
-type DrawElements struct {
+type DrawElementsBuffered struct {
 	Primitive gl.GLenum
 	Elements  ElementIndexFormat
 }
 
-func (self DrawElements) Draw() {
+func (self DrawElementsBuffered) Draw() *GlError {
 	gl.DrawElements(
 		self.Primitive,
 		self.Elements.Len(),
 		self.Elements.GlType(),
 		nil, // Indices are in a buffer, never give them directly.
 	)
+	err := CheckGlError()
+	if err != nil {
+		err.Description = fmt.Sprintf("DrawElementsBuffered %v", self)
+	}
+	return err
 }
 
-func MakeDrawable(programs Programs, srefs ShaderRefs, vertices VertexFormat, indices ElementIndexFormat, binding_point uint) Drawable {
+func MakeDrawable(programs Programs, srefs ShaderRefs, vertices VertexFormat, indices ElementIndexFormat, binding_point uint, primitive gl.GLenum) Drawable {
 	vao := gl.GenVertexArray()
 	vao.Bind()
 
@@ -157,6 +163,10 @@ func MakeDrawable(programs Programs, srefs ShaderRefs, vertices VertexFormat, in
 		panic(err)
 	} else {
 		gl.BufferData(gl.ARRAY_BUFFER, len(data), &data[0], gl.STATIC_DRAW)
+		if err := CheckGlError(); err != nil {
+			err.Description = "BufferData"
+			panic(err)
+		}
 	}
 
 	ebo := gl.GenBuffer()
@@ -165,6 +175,14 @@ func MakeDrawable(programs Programs, srefs ShaderRefs, vertices VertexFormat, in
 		panic(err)
 	} else {
 		gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(data), &data[0], gl.STATIC_DRAW)
+		if err := CheckGlError(); err != nil {
+			err.Description = "BufferData"
+			panic(err)
+		}
+	}
+	drawer := DrawElementsBuffered{
+		Primitive: primitive,
+		Elements:  indices,
 	}
 
 	program, err := programs.Serve(srefs)
@@ -195,7 +213,7 @@ func MakeDrawable(programs Programs, srefs ShaderRefs, vertices VertexFormat, in
 		panic(err)
 	}
 	vbo.Unbind(gl.ARRAY_BUFFER)
-	return Drawable{gl.TRIANGLE_STRIP, vao, model_matrix_uniform, srefs, indices.Len()}
+	return Drawable{vao, model_matrix_uniform, srefs, drawer}
 }
 
 func Cube(programs Programs, binding_point uint) Drawable {
@@ -217,7 +235,7 @@ func Cube(programs Programs, binding_point uint) Drawable {
 	// number the vertices (see above, it's binary code).
 	indices := ElementIndicesUbyte{6, 2, 7, 3, 1, 2, 0, 6, 4, 7, 5, 1, 4, 0}
 	srefs := ShaderRefs{VSH_POS3, FSH_ZRED}
-	return MakeDrawable(programs, srefs, vertices, indices, binding_point)
+	return MakeDrawable(programs, srefs, vertices, indices, binding_point, gl.TRIANGLE_STRIP)
 }
 
 func Pyramid(programs Programs, binding_point uint) Drawable {
@@ -232,7 +250,7 @@ func Pyramid(programs Programs, binding_point uint) Drawable {
 	}
 	indices := ElementIndicesUbyte{1, 4, 3, 2, 1, 0, 4, 2}
 	srefs := ShaderRefs{VSH_POS3, FSH_ZGREEN}
-	return MakeDrawable(programs, srefs, vertices, indices, binding_point)
+	return MakeDrawable(programs, srefs, vertices, indices, binding_point, gl.TRIANGLE_STRIP)
 }
 
 func Floor(programs Programs, binding_point uint) Drawable {
@@ -249,7 +267,7 @@ func Floor(programs Programs, binding_point uint) Drawable {
 		0, 2, 1, 3,
 	}
 	srefs := ShaderRefs{VSH_COL3, FSH_VCOL}
-	return MakeDrawable(programs, srefs, vertices, indices, binding_point)
+	return MakeDrawable(programs, srefs, vertices, indices, binding_point, gl.TRIANGLE_STRIP)
 }
 
 func Ceiling(programs Programs, binding_point uint) Drawable {
@@ -263,7 +281,7 @@ func Ceiling(programs Programs, binding_point uint) Drawable {
 	}
 	indices := ElementIndicesUbyte{0, 1, 2, 3}
 	srefs := ShaderRefs{VSH_COL3, FSH_VCOL}
-	return MakeDrawable(programs, srefs, vertices, indices, binding_point)
+	return MakeDrawable(programs, srefs, vertices, indices, binding_point, gl.TRIANGLE_STRIP)
 }
 
 func Wall(programs Programs, binding_point uint) Drawable {
@@ -280,7 +298,7 @@ func Wall(programs Programs, binding_point uint) Drawable {
 	}
 	indices := ElementIndicesUbyte{0, 2, 1, 3}
 	srefs := ShaderRefs{VSH_COL3, FSH_VCOL}
-	return MakeDrawable(programs, srefs, vertices, indices, binding_point)
+	return MakeDrawable(programs, srefs, vertices, indices, binding_point, gl.TRIANGLE_STRIP)
 }
 
 func Column(programs Programs, binding_point uint) Drawable {
@@ -302,7 +320,7 @@ func Column(programs Programs, binding_point uint) Drawable {
 	// number the vertices (see above, it's binary code).
 	indices := ElementIndicesUbyte{1, 0, 5, 4, 7, 6, 3, 2, 1, 0}
 	srefs := ShaderRefs{VSH_POS3, FSH_ZRED}
-	return MakeDrawable(programs, srefs, vertices, indices, binding_point)
+	return MakeDrawable(programs, srefs, vertices, indices, binding_point, gl.TRIANGLE_STRIP)
 }
 
 func DynaPyramid(programs Programs) StreamDrawable {
@@ -337,17 +355,15 @@ func DynaPyramid(programs Programs) StreamDrawable {
 	model_matrix_uniform := program.GetUniformLocation("model_matrix")
 	vbo.Unbind(gl.ARRAY_BUFFER)
 	var result StreamDrawable
-	result.Drawable.primitive = gl.TRIANGLE_STRIP
 	result.Drawable.vao = vao
 	result.Drawable.model_matrix_uniform = model_matrix_uniform
 	result.Drawable.shaders_refs = srefs
-	result.Drawable.n_elements = len(indices)
 	result.vbo = vbo
 	result.vbosize = int(unsafe.Sizeof(vertices))
 	return result
 }
 
-func Monster(programs Programs) Drawable {
+func Monster(programs Programs, binding_point uint) Drawable {
 	const h = .5
 	const w = .2
 	const d = .15
@@ -360,16 +376,16 @@ func Monster(programs Programs) Drawable {
 	const N = (h + c) / 2 // Nose height
 	const n_verts = 7     // Number of vertices.
 	const cpv = 6         // Components per vertex.
-	vertices := [n_verts * cpv]gl.GLfloat{
-		b, l, 0, 0.40, 0.20, 0.00,
-		b, r, 0, 0.40, 0.20, 0.00,
-		b, r, h, 0.80, 0.40, 0.00,
-		b, l, h, 0.80, 0.40, 0.00,
-		f, 0, 0, 0.40, 0.20, 0.00,
-		f, 0, c, 0.40, 0.20, 0.00,
-		n, 0, N, 1.00, 0.80, 0.00,
+	vertices := VerticesFormatXyzRgb{
+		VertexFormatXyzRgb{b, l, 0, 0.40, 0.20, 0.00},
+		VertexFormatXyzRgb{b, r, 0, 0.40, 0.20, 0.00},
+		VertexFormatXyzRgb{b, r, h, 0.80, 0.40, 0.00},
+		VertexFormatXyzRgb{b, l, h, 0.80, 0.40, 0.00},
+		VertexFormatXyzRgb{f, 0, 0, 0.40, 0.20, 0.00},
+		VertexFormatXyzRgb{f, 0, c, 0.40, 0.20, 0.00},
+		VertexFormatXyzRgb{n, 0, N, 1.00, 0.80, 0.00},
 	}
-	indices := [...]gl.GLubyte{
+	indices := ElementIndicesUbyte{
 		// Bottom.
 		0, 4, 1,
 		// Back.
@@ -388,73 +404,6 @@ func Monster(programs Programs) Drawable {
 		// Top head.
 		2, 6, 3,
 	}
-	vao := gl.GenVertexArray()
-	vao.Bind()
-	vbo := gl.GenBuffer()
-	vbo.Bind(gl.ARRAY_BUFFER)
-	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.STATIC_DRAW)
-
-	ebo := gl.GenBuffer()
-	ebo.Bind(gl.ELEMENT_ARRAY_BUFFER)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
-
 	srefs := ShaderRefs{VSH_COL3, FSH_VCOL}
-	program, err := programs.Serve(srefs)
-	if err != nil {
-		panic(err)
-	}
-
-	att := program.GetAttribLocation("vpos")
-	if err := CheckGlError(); err != nil {
-		err.Description = "get attrib location 1"
-		panic(err)
-	}
-	att.EnableArray()
-	if err := CheckGlError(); err != nil {
-		err.Description = "enable array 1"
-		panic(err)
-	}
-	att.AttribPointer(
-		3,
-		gl.FLOAT,
-		false,
-		6*4,
-		uintptr(0))
-	if err := CheckGlError(); err != nil {
-		err.Description = "attrib pointer 1"
-		panic(err)
-	}
-	att = program.GetAttribLocation("vcol")
-	if err := CheckGlError(); err != nil {
-		err.Description = "get attrib location 2"
-		panic(err)
-	}
-	att.EnableArray()
-	if err := CheckGlError(); err != nil {
-		err.Description = "enable array 2"
-		panic(err)
-	}
-	att.AttribPointer(
-		3,
-		gl.FLOAT,
-		false,
-		6*4,
-		uintptr(3*4))
-	if err := CheckGlError(); err != nil {
-		err.Description = "attrib pointer 2"
-		panic(err)
-	}
-	model_matrix_uniform := program.GetUniformLocation("model_matrix")
-	if err := CheckGlError(); err != nil {
-		err.Description = "Get uniform mvp"
-		panic(err)
-	}
-
-	vbo.Unbind(gl.ARRAY_BUFFER)
-
-	if err := CheckGlError(); err != nil {
-		err.Description = "vbo unbind"
-		panic(err)
-	}
-	return Drawable{gl.TRIANGLES, vao, model_matrix_uniform, srefs, len(indices)}
+	return MakeDrawable(programs, srefs, vertices, indices, binding_point, gl.TRIANGLES)
 }

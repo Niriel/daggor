@@ -1,8 +1,10 @@
 package glw
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/go-gl/gl"
+	"runtime"
 )
 
 var ERROR_NAMES = map[gl.GLenum]string{
@@ -17,17 +19,48 @@ var ERROR_NAMES = map[gl.GLenum]string{
 	gl.TABLE_TOO_LARGE:               "table too large",
 }
 
+func retreiveStackTrace() *bytes.Buffer {
+	const SIZE = 2048
+	var stack []byte
+	size := SIZE
+	for i := 0; i <= 6; i++ {
+		stack = make([]byte, size)
+		written := runtime.Stack(stack, true)
+		if written < size {
+			stack = stack[:written]
+			break
+		}
+		size *= 2
+	}
+	return bytes.NewBuffer(stack)
+}
+
 type GlError struct {
-	error_code  gl.GLenum
+	Error_code  gl.GLenum
+	Stack       *bytes.Buffer
 	Description string
 }
 
 func (self GlError) Error() string {
-	error_name, ok := ERROR_NAMES[self.error_code]
+	return self.String()
+}
+func (self GlError) String() string {
+	error_name, ok := ERROR_NAMES[self.Error_code]
 	if !ok {
-		error_name = fmt.Sprintf("unknown error code %v", self.error_code)
+		error_name = fmt.Sprintf("unknown error code %v", self.Error_code)
 	}
-	return fmt.Sprintf("OpenGL [%v] %v", error_name, self.Description)
+	var stack_string string
+	if self.Stack == nil {
+		stack_string = "No stack."
+	} else {
+		stack_string = self.Stack.String()
+	}
+	return fmt.Sprintf(
+		"OpenGL [%v] %v\nStacktrace:\n%v\n",
+		error_name,
+		self.Description,
+		stack_string,
+	)
 }
 
 func CheckGlError() *GlError {
@@ -35,6 +68,9 @@ func CheckGlError() *GlError {
 	if ec == gl.NO_ERROR {
 		return nil
 	}
-	err := GlError{error_code: ec}
+	err := GlError{
+		Error_code: ec,
+		Stack:      retreiveStackTrace(),
+	}
 	return &err
 }

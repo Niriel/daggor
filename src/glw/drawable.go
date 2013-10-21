@@ -6,12 +6,10 @@ import (
 )
 
 type Drawable struct {
-	primitive gl.GLenum
-	vao       gl.VertexArray
-	//global_matrices
+	vao                  gl.VertexArray
 	model_matrix_uniform gl.UniformLocation
 	shaders_refs         ShaderRefs
-	n_elements           int
+	drawer               Drawer
 }
 
 func (self *Drawable) Draw(programs Programs, model_matrix *[16]float32) {
@@ -40,8 +38,8 @@ func (self *Drawable) Draw(programs Programs, model_matrix *[16]float32) {
 		gl.GetError() // Clear error flag if infolog derped.
 		panic(fmt.Errorf("Program validation failed. Log: %v", infolog))
 	}
-
-	gl.DrawElements(self.primitive, self.n_elements, gl.UNSIGNED_BYTE, nil)
+	self.drawer.Draw()
+	//gl.DrawElements(self.primitive, self.n_elements, gl.UNSIGNED_BYTE, nil)
 }
 
 type StreamDrawable struct {
