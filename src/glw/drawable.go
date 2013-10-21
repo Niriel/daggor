@@ -6,14 +6,15 @@ import (
 )
 
 type Drawable struct {
-	primitive    gl.GLenum
-	vao          gl.VertexArray
-	mvp          gl.UniformLocation
-	shaders_refs ShaderRefs
-	n_elements   int
+	primitive gl.GLenum
+	vao       gl.VertexArray
+	//global_matrices
+	model_matrix_uniform gl.UniformLocation
+	shaders_refs         ShaderRefs
+	n_elements           int
 }
 
-func (self *Drawable) Draw(programs Programs, mvp_matrix *[16]float32) {
+func (self *Drawable) Draw(programs Programs, model_matrix *[16]float32) {
 	// Bindind the VAO each time is not efficient but
 	// it is correct.
 	program, err := programs.Serve(self.shaders_refs)
@@ -22,7 +23,7 @@ func (self *Drawable) Draw(programs Programs, mvp_matrix *[16]float32) {
 	}
 	self.vao.Bind()
 	program.Use()
-	self.mvp.UniformMatrix4f(false, mvp_matrix)
+	self.model_matrix_uniform.UniformMatrix4f(false, model_matrix)
 
 	program.Validate()
 	if err := CheckGlError(); err != nil {

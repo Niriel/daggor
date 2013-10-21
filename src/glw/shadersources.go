@@ -4,22 +4,38 @@ var SHADER_SOURCES = map[ShaderRef]ShaderSeed{
 	VSH_POS3: ShaderSeed{Type: VERTEX_SHADER, Source: `
 #version 330 core
 // Transmits the position to the fragment shader.
+
+layout(std140) uniform GlobalMatrices
+{
+    mat4 projection_matrix;
+    mat4 view_matrix;
+};
+uniform mat4 model_matrix;
 in vec3 vpos;
 out vec3 fpos;
-uniform mat4 mvp;
 void main(){
-	gl_Position = mvp * vec4(vpos, 1.0);
+	vec4 temp = model_matrix * vec4(vpos, 1.0);
+	temp = view_matrix * temp;
+	gl_Position = projection_matrix * temp;
 	fpos = gl_Position.xyz;
 }`},
 	VSH_COL3: ShaderSeed{Type: VERTEX_SHADER, Source: `
 #version 330 core
 // Transmits the color to the fragment shader.
+
+layout(std140) uniform GlobalMatrices
+{
+    mat4 projection_matrix;
+    mat4 view_matrix;
+};
+uniform mat4 model_matrix;
 in vec3 vpos;
 in vec3 vcol;
-uniform mat4 mvp;
 out vec3 fcol;
 void main(){
-	gl_Position = mvp * vec4(vpos, 1.0);
+	vec4 temp = model_matrix * vec4(vpos, 1.0);
+	temp = view_matrix * temp;
+	gl_Position = projection_matrix * temp;
 	fcol = vcol;
 }`},
 	FSH_ZRED: ShaderSeed{Type: FRAGMENT_SHADER, Source: `

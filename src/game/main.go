@@ -10,6 +10,7 @@ import (
 	"ia"
 	"runtime"
 	"time"
+	"unsafe"
 	"world"
 )
 
@@ -173,13 +174,59 @@ func ViewMatrix(pos world.Position) glm.Matrix4 {
 	return R.Mult(T)
 }
 
+type GlobalMatrices struct {
+	Ubo gl.Buffer
+}
+
+func CreateGlobalMatrices() GlobalMatrices {
+	ubo := gl.GenBuffer()
+	ubo.Bind(gl.UNIFORM_BUFFER)
+	gl.BufferData(
+		gl.UNIFORM_BUFFER,
+		int(unsafe.Sizeof(gl.GLfloat(0))*16*2), // Two matrices of 16 floats.
+		nil,
+		gl.STREAM_DRAW,
+	)
+	ubo.Unbind(gl.UNIFORM_BUFFER)
+	return GlobalMatrices{ubo}
+}
+
+func (self GlobalMatrices) updateMatrix(matrix glm.Matrix4, offset uintptr) {
+	glmatrix := matrix.Gl()
+	self.Ubo.Bind(gl.UNIFORM_BUFFER)
+	gl.BufferSubData(
+		gl.UNIFORM_BUFFER,
+		int(offset),
+		int(unsafe.Sizeof(glmatrix)),
+		&glmatrix,
+	)
+	self.Ubo.Unbind(gl.UNIFORM_BUFFER)
+}
+
+func (self GlobalMatrices) UpdateProjection(projection glm.Matrix4) {
+	self.updateMatrix(projection, 0)
+}
+
+func (self GlobalMatrices) UpdateView(view glm.Matrix4) {
+	self.updateMatrix(view, unsafe.Sizeof(gl.GLfloat(0))*16)
+}
+
+func (self GlobalMatrices) BindingPoint(binding_point uint) {
+	self.Ubo.BindBufferRange(
+		gl.UNIFORM_BUFFER,
+		binding_point,
+		0,
+		uint(unsafe.Sizeof(gl.GLfloat(0))*16*2),
+	)
+}
+
 type GlState struct {
 	Window           *glfw.Window
 	GlfwKeyEventList *GlfwKeyEventList
 	Programs         glw.Programs
-	P                glm.Matrix4
 	Shapes           [7]glw.Drawable
 	DynaPyramid      glw.StreamDrawable
+	Global_matrices  GlobalMatrices
 }
 
 type ProgramState struct {
@@ -444,12 +491,14 @@ func main() {
 
 	program_state.Gl.Programs = glw.MakePrograms()
 
-	program_state.Gl.Shapes[CUBE_ID] = glw.Cube(program_state.Gl.Programs)
-	program_state.Gl.Shapes[PYRAMID_ID] = glw.Pyramid(program_state.Gl.Programs)
-	program_state.Gl.Shapes[FLOOR_ID] = glw.Floor(program_state.Gl.Programs)
-	program_state.Gl.Shapes[WALL_ID] = glw.Wall(program_state.Gl.Programs)
-	program_state.Gl.Shapes[COLUMN_ID] = glw.Column(program_state.Gl.Programs)
-	program_state.Gl.Shapes[CEILING_ID] = glw.Ceiling(program_state.Gl.Programs)
+	const UNIFORM_BINDING = 0
+
+	program_state.Gl.Shapes[CUBE_ID] = glw.Cube(program_state.Gl.Programs, UNIFORM_BINDING)
+	program_state.Gl.Shapes[PYRAMID_ID] = glw.Pyramid(program_state.Gl.Programs, UNIFORM_BINDING)
+	program_state.Gl.Shapes[FLOOR_ID] = glw.Floor(program_state.Gl.Programs, UNIFORM_BINDING)
+	program_state.Gl.Shapes[WALL_ID] = glw.Wall(program_state.Gl.Programs, UNIFORM_BINDING)
+	program_state.Gl.Shapes[COLUMN_ID] = glw.Column(program_state.Gl.Programs, UNIFORM_BINDING)
+	program_state.Gl.Shapes[CEILING_ID] = glw.Ceiling(program_state.Gl.Programs, UNIFORM_BINDING)
 	program_state.Gl.Shapes[MONSTER_ID] = glw.Monster(program_state.Gl.Programs)
 	program_state.Gl.DynaPyramid = glw.DynaPyramid(program_state.Gl.Programs)
 
@@ -463,7 +512,10 @@ func main() {
 	// an angle of 0 points to the right (east) of the trigonometric
 	// circle.  Bonus point: this matches Blender's reference frame.
 	my_frame := glm.ZUP.Mult(glm.RotZ(90))
-	program_state.Gl.P = glm.PerspectiveProj(110, 640./480., .1, 100).Mult(my_frame)
+	projection_matrix := glm.PerspectiveProj(110, 640./480., .1, 100).Mult(my_frame)
+	program_state.Gl.Global_matrices = CreateGlobalMatrices()
+	program_state.Gl.Global_matrices.BindingPoint(UNIFORM_BINDING)
+	program_state.Gl.Global_matrices.UpdateProjection(projection_matrix)
 
 	gl.Enable(gl.FRAMEBUFFER_SRGB)
 	gl.Enable(gl.DEPTH_TEST)
@@ -537,9 +589,7 @@ func RunAI(w world.World, player_action ia.Action) world.World {
 		index := schedule.PosActorId(actor_id)
 		if index == -1 {
 			fmt.Println("Force scheduling", actor_id)
-			fmt.Println(schedule)
 			schedule = schedule.Add(actor_id, w.Time)
-			fmt.Println(schedule)
 		}
 	}
 	w = w.SetActorSchedule(schedule)
@@ -593,24 +643,23 @@ func Render(program_state ProgramState) {
 	if !ok {
 		panic("Could not find player's character position.")
 	}
-	v := ViewMatrix(position)
-	vp := (program_state.Gl.P).Mult(v)
+	program_state.Gl.Global_matrices.UpdateView(ViewMatrix(position))
 	RenderBuildings(
 		program_state.World.Level.Floors,
 		0, 0,
-		vp, nil,
+		nil,
 		program_state.Gl,
 	)
 	RenderBuildings(
 		program_state.World.Level.Ceilings,
 		0, 0,
-		vp, nil,
+		nil,
 		program_state.Gl,
 	)
 	RenderBuildings(
 		program_state.World.Level.Columns,
 		-.5, -.5,
-		vp, nil,
+		nil,
 		program_state.Gl,
 	)
 	for facing := 0; facing < 4; facing++ {
@@ -618,7 +667,7 @@ func Render(program_state ProgramState) {
 		RenderBuildings(
 			program_state.World.Level.Walls[facing],
 			0, 0,
-			vp, &default_r,
+			&default_r,
 			program_state.Gl,
 		)
 	}
@@ -632,7 +681,6 @@ func Render(program_state ProgramState) {
 	RenderCreatures(
 		creature_locations,
 		program_state.World.Level.Creatures,
-		vp,
 		program_state.Gl,
 	)
 
@@ -648,7 +696,6 @@ func Render(program_state ProgramState) {
 func RenderBuildings(
 	buildings world.Buildings,
 	offset_x, offset_y float64,
-	vp glm.Matrix4,
 	default_r *glm.Matrix4, // Can be nil.
 	gl_state GlState,
 ) {
@@ -668,15 +715,14 @@ func RenderBuildings(
 			// It is given as a precalculated rotation matrix `default_r`.
 			m = m.Mult(*default_r)
 		}
-		mvp := vp.Mult(m).Gl()
-		gl_state.Shapes[building.Model()].Draw(gl_state.Programs, &mvp)
+		mgl := m.Gl()
+		gl_state.Shapes[building.Model()].Draw(gl_state.Programs, &mgl)
 	}
 }
 
 func RenderCreatures(
 	creature_locations world.CreatureLocation,
 	creatures world.Creatures,
-	vp glm.Matrix4,
 	gl_state GlState,
 ) {
 	for creature_id, creature_location := range creature_locations.Cl {
@@ -687,8 +733,8 @@ func RenderCreatures(
 				float64(creature_location.Y),
 				0,
 			}.Translation().Mult(glm.RotZ(float64(90 * creature.F.Value())))
-			mvp := vp.Mult(m).Gl()
-			gl_state.Shapes[MONSTER_ID].Draw(gl_state.Programs, &mvp)
+			mgl := m.Gl()
+			gl_state.Shapes[MONSTER_ID].Draw(gl_state.Programs, &mgl)
 		}
 	}
 }

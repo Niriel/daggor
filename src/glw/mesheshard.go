@@ -4,309 +4,265 @@
 package glw
 
 import (
+	"bytes"
+	"encoding/binary"
+	"fmt"
 	"github.com/go-gl/gl"
 	"unsafe"
 )
 
-func Cube(programs Programs) Drawable {
+var ENDIANNES binary.ByteOrder
+
+func init() {
+	// Here, somehow detect the endianness of the system.
+	// We need to encode vertex data before sending it to OpenGL, and OpenGL
+	// uses the endianness of the system on which we are running.
+	ENDIANNES = binary.LittleEndian
+}
+
+type GlEncoder interface {
+	GlEncode() ([]byte, error)
+}
+
+type ElementIndexFormat interface {
+	GlEncoder
+	Len() int
+}
+
+type VertexFormat interface {
+	GlEncoder
+	AttribPointers([]gl.AttribLocation)
+	Names() []string
+}
+
+type VertexFormatXyz struct {
+	x, y, z gl.GLfloat
+}
+type VertexFormatXyzRgb struct {
+	x, y, z gl.GLfloat
+	r, g, b gl.GLfloat
+}
+type VerticesFormatXyz []VertexFormatXyz
+type VerticesFormatXyzRgb []VertexFormatXyzRgb
+
+func (self VerticesFormatXyz) Names() []string {
+	return []string{"vpos"}
+}
+func (self VerticesFormatXyzRgb) Names() []string {
+	return []string{"vpos", "vcol"}
+}
+func (self VerticesFormatXyz) AttribPointers(atts []gl.AttribLocation) {
+	const FLOATSIZE = unsafe.Sizeof(gl.GLfloat(0))
+	const NB_COORDS = 3
+	const COORDS_SIZE = NB_COORDS * FLOATSIZE
+	const COORDS_OFS = uintptr(0)
+	const TOTAL_SIZE = int(COORDS_SIZE)
+	atts[0].AttribPointer(NB_COORDS, gl.FLOAT, false, TOTAL_SIZE, COORDS_OFS)
+	if err := CheckGlError(); err != nil {
+		err.Description = "VerticesFormatXyz atts[0].AttribPointer"
+		panic(err)
+	}
+}
+func (self VerticesFormatXyzRgb) AttribPointers(atts []gl.AttribLocation) {
+	const FLOATSIZE = unsafe.Sizeof(gl.GLfloat(0))
+	const NB_COORDS = 3
+	const NB_COLORS = 3
+	const COORDS_SIZE = NB_COORDS * FLOATSIZE
+	const COLORS_SIZE = NB_COLORS * FLOATSIZE
+	const COORDS_OFS = uintptr(0)
+	const COLORS_OFS = uintptr(COORDS_SIZE)
+	const TOTAL_SIZE = int(COORDS_SIZE + COLORS_SIZE)
+	atts[0].AttribPointer(NB_COORDS, gl.FLOAT, false, TOTAL_SIZE, COORDS_OFS)
+	if err := CheckGlError(); err != nil {
+		err.Description = "VerticesFormatXyzRgb atts[0].AttribPointer"
+		panic(err)
+	}
+	atts[1].AttribPointer(NB_COLORS, gl.FLOAT, false, TOTAL_SIZE, COLORS_OFS)
+	if err := CheckGlError(); err != nil {
+		err.Description = "VerticesFormatXyzRgb atts[1].AttribPointer"
+		panic(err)
+	}
+}
+
+func (self VerticesFormatXyz) GlEncode() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	err := binary.Write(buf, ENDIANNES, self)
+	return buf.Bytes(), err
+}
+func (self VerticesFormatXyzRgb) GlEncode() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	err := binary.Write(buf, ENDIANNES, self)
+	return buf.Bytes(), err
+}
+
+type ElementIndicesUbyte []gl.GLubyte
+
+func (self ElementIndicesUbyte) GlEncode() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	err := binary.Write(buf, ENDIANNES, self)
+	return buf.Bytes(), err
+}
+
+func (self ElementIndicesUbyte) Len() int {
+	return len(self)
+}
+
+func MakeDrawable(programs Programs, srefs ShaderRefs, vertices VertexFormat, indices ElementIndexFormat, binding_point uint) Drawable {
+	vao := gl.GenVertexArray()
+	vao.Bind()
+
+	vbo := gl.GenBuffer()
+	vbo.Bind(gl.ARRAY_BUFFER)
+	if data, err := vertices.GlEncode(); err != nil {
+		panic(err)
+	} else {
+		gl.BufferData(gl.ARRAY_BUFFER, len(data), &data[0], gl.STATIC_DRAW)
+	}
+
+	ebo := gl.GenBuffer()
+	ebo.Bind(gl.ELEMENT_ARRAY_BUFFER)
+	if data, err := indices.GlEncode(); err != nil {
+		panic(err)
+	} else {
+		gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(data), &data[0], gl.STATIC_DRAW)
+	}
+
+	program, err := programs.Serve(srefs)
+	if err != nil {
+		panic(err)
+	}
+
+	atts_names := vertices.Names()
+	atts := make([]gl.AttribLocation, len(atts_names))
+	for i, att_name := range atts_names {
+		atts[i] = program.GetAttribLocation(att_name)
+		atts[i].EnableArray()
+	}
+	vertices.AttribPointers(atts)
+
+	model_matrix_uniform := program.GetUniformLocation("model_matrix")
+	ubi := program.GetUniformBlockIndex("GlobalMatrices")
+	if err := CheckGlError(); err != nil {
+		err.Description = "GetUniformBlockIndex"
+		panic(err)
+	}
+	if ubi == gl.INVALID_INDEX {
+		fmt.Println("INVALID_INDEX")
+	}
+	program.UniformBlockBinding(ubi, binding_point)
+	if err := CheckGlError(); err != nil {
+		err.Description = "UniformBlockBinding"
+		panic(err)
+	}
+	vbo.Unbind(gl.ARRAY_BUFFER)
+	return Drawable{gl.TRIANGLE_STRIP, vao, model_matrix_uniform, srefs, indices.Len()}
+}
+
+func Cube(programs Programs, binding_point uint) Drawable {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
-	vertices := [...]gl.GLfloat{
-		m, m, 0,
-		m, m, 1,
-		m, p, 0,
-		m, p, 1,
-		p, m, 0,
-		p, m, 1,
-		p, p, 0,
-		p, p, 1,
+	vertices := VerticesFormatXyz{
+		VertexFormatXyz{m, m, 0},
+		VertexFormatXyz{m, m, 1},
+		VertexFormatXyz{m, p, 0},
+		VertexFormatXyz{m, p, 1},
+		VertexFormatXyz{p, m, 0},
+		VertexFormatXyz{p, m, 1},
+		VertexFormatXyz{p, p, 0},
+		VertexFormatXyz{p, p, 1},
 	}
 	// Indices for triangle strip adapted from
 	// http://www.cs.umd.edu/gvil/papers/av_ts.pdf .
 	// I mirrored their cube to have CCW, and I used a natural order to
 	// number the vertices (see above, it's binary code).
-	indices := [...]gl.GLubyte{
-		6, 2, 7, 3, 1, 2, 0, 6, 4, 7, 5, 1, 4, 0,
-	}
-	vao := gl.GenVertexArray()
-	vao.Bind()
-	vbuf := gl.GenBuffer()
-	vbuf.Bind(gl.ARRAY_BUFFER)
-	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.STATIC_DRAW)
-	ebuf := gl.GenBuffer()
-	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
-
+	indices := ElementIndicesUbyte{6, 2, 7, 3, 1, 2, 0, 6, 4, 7, 5, 1, 4, 0}
 	srefs := ShaderRefs{VSH_POS3, FSH_ZRED}
-	program, err := programs.Serve(srefs)
-	if err != nil {
-		panic(err)
-	}
-
-	program.Use()
-
-	att := program.GetAttribLocation("vpos")
-	att.EnableArray()
-	att.AttribPointer(
-		3,
-		gl.FLOAT,
-		false,
-		0,
-		nil)
-	mvp := program.GetUniformLocation("mvp")
-	vbuf.Unbind(gl.ARRAY_BUFFER)
-	return Drawable{gl.TRIANGLE_STRIP, vao, mvp, srefs, len(indices)}
+	return MakeDrawable(programs, srefs, vertices, indices, binding_point)
 }
 
-func Pyramid(programs Programs) Drawable {
+func Pyramid(programs Programs, binding_point uint) Drawable {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
-	vertices := [...]gl.GLfloat{
-		m, m, 0,
-		m, p, 0,
-		p, m, 0,
-		p, p, 0,
-		0, 0, 1,
+	vertices := VerticesFormatXyz{
+		VertexFormatXyz{m, m, 0},
+		VertexFormatXyz{m, p, 0},
+		VertexFormatXyz{p, m, 0},
+		VertexFormatXyz{p, p, 0},
+		VertexFormatXyz{0, 0, 1},
 	}
-	indices := [...]gl.GLubyte{
-		1, 4, 3, 2, 1, 0, 4, 2,
-	}
-	vao := gl.GenVertexArray()
-	vao.Bind()
-	vbuf := gl.GenBuffer()
-	vbuf.Bind(gl.ARRAY_BUFFER)
-	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.STATIC_DRAW)
-
-	ebuf := gl.GenBuffer()
-	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
-
+	indices := ElementIndicesUbyte{1, 4, 3, 2, 1, 0, 4, 2}
 	srefs := ShaderRefs{VSH_POS3, FSH_ZGREEN}
-	program, err := programs.Serve(srefs)
-	if err != nil {
-		panic(err)
-	}
-
-	att := program.GetAttribLocation("vpos")
-	att.EnableArray()
-	att.AttribPointer(
-		3,
-		gl.FLOAT,
-		false,
-		0,
-		nil)
-	mvp := program.GetUniformLocation("mvp")
-	vbuf.Unbind(gl.ARRAY_BUFFER)
-	return Drawable{gl.TRIANGLE_STRIP, vao, mvp, srefs, len(indices)}
+	return MakeDrawable(programs, srefs, vertices, indices, binding_point)
 }
 
-func Floor(programs Programs) Drawable {
+func Floor(programs Programs, binding_point uint) Drawable {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
-	vertices := [...]gl.GLfloat{
+	vertices := VerticesFormatXyzRgb{
 		// x y z r v b
-		m, m, 0, .1, .1, .5,
-		m, p, 0, .1, .1, .5,
-		p, m, 0, 0, 1, 0,
-		p, p, 0, 1, 0, 0,
+		VertexFormatXyzRgb{m, m, 0, .1, .1, .5},
+		VertexFormatXyzRgb{m, p, 0, .1, .1, .5},
+		VertexFormatXyzRgb{p, m, 0, 0, 1, 0},
+		VertexFormatXyzRgb{p, p, 0, 1, 0, 0},
 	}
-	indices := [...]gl.GLubyte{
+	indices := ElementIndicesUbyte{
 		0, 2, 1, 3,
 	}
-	vao := gl.GenVertexArray()
-	vao.Bind()
-
-	vbuf := gl.GenBuffer()
-	vbuf.Bind(gl.ARRAY_BUFFER)
-	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.STATIC_DRAW)
-
-	ebuf := gl.GenBuffer()
-	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
-
 	srefs := ShaderRefs{VSH_COL3, FSH_VCOL}
-	program, err := programs.Serve(srefs)
-	if err != nil {
-		panic(err)
-	}
-
-	att := program.GetAttribLocation("vpos")
-	att.EnableArray()
-	att.AttribPointer(
-		3,
-		gl.FLOAT,
-		false,
-		6*4,
-		uintptr(0))
-	att = program.GetAttribLocation("vcol")
-	att.EnableArray()
-	att.AttribPointer(
-		3,
-		gl.FLOAT,
-		false,
-		6*4,
-		uintptr(3*4))
-	mvp := program.GetUniformLocation("mvp")
-
-	vbuf.Unbind(gl.ARRAY_BUFFER)
-	return Drawable{gl.TRIANGLE_STRIP, vao, mvp, srefs, len(indices)}
+	return MakeDrawable(programs, srefs, vertices, indices, binding_point)
 }
 
-func Ceiling(programs Programs) Drawable {
+func Ceiling(programs Programs, binding_point uint) Drawable {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
-	vertices := [...]gl.GLfloat{
-		// x y z r v b
-		m, m, 1, .1, .1, .5,
-		m, p, 1, .1, .1, .5,
-		p, m, 1, 0, 1, 0,
-		p, p, 1, 1, 0, 0,
+	vertices := VerticesFormatXyzRgb{
+		VertexFormatXyzRgb{m, m, 1, .1, .1, .5},
+		VertexFormatXyzRgb{m, p, 1, .1, .1, .5},
+		VertexFormatXyzRgb{p, m, 1, 0, 1, 0},
+		VertexFormatXyzRgb{p, p, 1, 1, 0, 0},
 	}
-	indices := [...]gl.GLubyte{
-		0, 1, 2, 3,
-	}
-	vao := gl.GenVertexArray()
-	vao.Bind()
-
-	vbuf := gl.GenBuffer()
-	vbuf.Bind(gl.ARRAY_BUFFER)
-	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.STATIC_DRAW)
-
-	ebuf := gl.GenBuffer()
-	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
-
+	indices := ElementIndicesUbyte{0, 1, 2, 3}
 	srefs := ShaderRefs{VSH_COL3, FSH_VCOL}
-	program, err := programs.Serve(srefs)
-	if err != nil {
-		panic(err)
-	}
-
-	att := program.GetAttribLocation("vpos")
-	att.EnableArray()
-	att.AttribPointer(
-		3,
-		gl.FLOAT,
-		false,
-		6*4,
-		uintptr(0))
-	att = program.GetAttribLocation("vcol")
-	att.EnableArray()
-	att.AttribPointer(
-		3,
-		gl.FLOAT,
-		false,
-		6*4,
-		uintptr(3*4))
-	mvp := program.GetUniformLocation("mvp")
-
-	vbuf.Unbind(gl.ARRAY_BUFFER)
-	return Drawable{gl.TRIANGLE_STRIP, vao, mvp, srefs, len(indices)}
+	return MakeDrawable(programs, srefs, vertices, indices, binding_point)
 }
 
-func Wall(programs Programs) Drawable {
+func Wall(programs Programs, binding_point uint) Drawable {
 	// The wall meshes are relative to the center of the tile to which they belong.
 	// They are given for a facing of 0 (east), therefore this mesh depicts a
 	// western wall.
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
-	vertices := [...]gl.GLfloat{
-		// x y z r v b
-		-.4, m, 0, .1, .1, .5,
-		-.4, m, 1, 0, 1, 0,
-		-.4, p, 0, .1, .1, .5,
-		-.4, p, 1, 1, 0, 0,
+	vertices := VerticesFormatXyzRgb{
+		VertexFormatXyzRgb{-.4, m, 0, .1, .1, .5},
+		VertexFormatXyzRgb{-.4, m, 1, 0, 1, 0},
+		VertexFormatXyzRgb{-.4, p, 0, .1, .1, .5},
+		VertexFormatXyzRgb{-.4, p, 1, 1, 0, 0},
 	}
-	indices := [...]gl.GLubyte{
-		0, 2, 1, 3,
-	}
-	vao := gl.GenVertexArray()
-	vao.Bind()
-
-	vbuf := gl.GenBuffer()
-	vbuf.Bind(gl.ARRAY_BUFFER)
-	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.STATIC_DRAW)
-
-	ebuf := gl.GenBuffer()
-	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
-
+	indices := ElementIndicesUbyte{0, 2, 1, 3}
 	srefs := ShaderRefs{VSH_COL3, FSH_VCOL}
-	program, err := programs.Serve(srefs)
-	if err != nil {
-		panic(err)
-	}
-
-	att := program.GetAttribLocation("vpos")
-	att.EnableArray()
-	att.AttribPointer(
-		3,
-		gl.FLOAT,
-		false,
-		6*4,
-		uintptr(0))
-	att = program.GetAttribLocation("vcol")
-	att.EnableArray()
-	att.AttribPointer(
-		3,
-		gl.FLOAT,
-		false,
-		6*4,
-		uintptr(3*4))
-	mvp := program.GetUniformLocation("mvp")
-
-	vbuf.Unbind(gl.ARRAY_BUFFER)
-	return Drawable{gl.TRIANGLE_STRIP, vao, mvp, srefs, len(indices)}
+	return MakeDrawable(programs, srefs, vertices, indices, binding_point)
 }
 
-func Column(programs Programs) Drawable {
+func Column(programs Programs, binding_point uint) Drawable {
 	const p = .15 // Plus sign.
 	const m = -p  // Minus sign.
-	vertices := [...]gl.GLfloat{
-		m, m, 0,
-		m, m, 1,
-		m, p, 0,
-		m, p, 1,
-		p, m, 0,
-		p, m, 1,
-		p, p, 0,
-		p, p, 1,
+	vertices := VerticesFormatXyz{
+		VertexFormatXyz{m, m, 0},
+		VertexFormatXyz{m, m, 1},
+		VertexFormatXyz{m, p, 0},
+		VertexFormatXyz{m, p, 1},
+		VertexFormatXyz{p, m, 0},
+		VertexFormatXyz{p, m, 1},
+		VertexFormatXyz{p, p, 0},
+		VertexFormatXyz{p, p, 1},
 	}
 	// Indices for triangle strip adapted from
 	// http://www.cs.umd.edu/gvil/papers/av_ts.pdf .
 	// I mirrored their cube to have CCW, and I used a natural order to
 	// number the vertices (see above, it's binary code).
-	indices := [...]gl.GLubyte{
-		1, 0, 5, 4, 7, 6, 3, 2, 1, 0,
-	}
-	vao := gl.GenVertexArray()
-	vao.Bind()
-	vbuf := gl.GenBuffer()
-	vbuf.Bind(gl.ARRAY_BUFFER)
-	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.STATIC_DRAW)
-	ebuf := gl.GenBuffer()
-	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
-
+	indices := ElementIndicesUbyte{1, 0, 5, 4, 7, 6, 3, 2, 1, 0}
 	srefs := ShaderRefs{VSH_POS3, FSH_ZRED}
-	program, err := programs.Serve(srefs)
-	if err != nil {
-		panic(err)
-	}
-
-	program.Use()
-
-	att := program.GetAttribLocation("vpos")
-	att.EnableArray()
-	att.AttribPointer(
-		3,
-		gl.FLOAT,
-		false,
-		0,
-		nil)
-	mvp := program.GetUniformLocation("mvp")
-	vbuf.Unbind(gl.ARRAY_BUFFER)
-	return Drawable{gl.TRIANGLE_STRIP, vao, mvp, srefs, len(indices)}
+	return MakeDrawable(programs, srefs, vertices, indices, binding_point)
 }
 
 func DynaPyramid(programs Programs) StreamDrawable {
@@ -316,12 +272,12 @@ func DynaPyramid(programs Programs) StreamDrawable {
 	}
 	vao := gl.GenVertexArray()
 	vao.Bind()
-	vbuf := gl.GenBuffer()
-	vbuf.Bind(gl.ARRAY_BUFFER)
+	vbo := gl.GenBuffer()
+	vbo.Bind(gl.ARRAY_BUFFER)
 	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), nil, gl.DYNAMIC_DRAW)
 
-	ebuf := gl.GenBuffer()
-	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
+	ebo := gl.GenBuffer()
+	ebo.Bind(gl.ELEMENT_ARRAY_BUFFER)
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
 
 	srefs := ShaderRefs{VSH_POS3, FSH_ZGREEN}
@@ -338,15 +294,15 @@ func DynaPyramid(programs Programs) StreamDrawable {
 		false,
 		0,
 		nil)
-	mvp := program.GetUniformLocation("mvp")
-	vbuf.Unbind(gl.ARRAY_BUFFER)
+	model_matrix_uniform := program.GetUniformLocation("model_matrix")
+	vbo.Unbind(gl.ARRAY_BUFFER)
 	var result StreamDrawable
 	result.Drawable.primitive = gl.TRIANGLE_STRIP
 	result.Drawable.vao = vao
-	result.Drawable.mvp = mvp
+	result.Drawable.model_matrix_uniform = model_matrix_uniform
 	result.Drawable.shaders_refs = srefs
 	result.Drawable.n_elements = len(indices)
-	result.vbo = vbuf
+	result.vbo = vbo
 	result.vbosize = int(unsafe.Sizeof(vertices))
 	return result
 }
@@ -394,12 +350,12 @@ func Monster(programs Programs) Drawable {
 	}
 	vao := gl.GenVertexArray()
 	vao.Bind()
-	vbuf := gl.GenBuffer()
-	vbuf.Bind(gl.ARRAY_BUFFER)
+	vbo := gl.GenBuffer()
+	vbo.Bind(gl.ARRAY_BUFFER)
 	gl.BufferData(gl.ARRAY_BUFFER, int(unsafe.Sizeof(vertices)), &vertices, gl.STATIC_DRAW)
 
-	ebuf := gl.GenBuffer()
-	ebuf.Bind(gl.ELEMENT_ARRAY_BUFFER)
+	ebo := gl.GenBuffer()
+	ebo.Bind(gl.ELEMENT_ARRAY_BUFFER)
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, int(unsafe.Sizeof(indices)), &indices, gl.STATIC_DRAW)
 
 	srefs := ShaderRefs{VSH_COL3, FSH_VCOL}
@@ -448,17 +404,17 @@ func Monster(programs Programs) Drawable {
 		err.Description = "attrib pointer 2"
 		panic(err)
 	}
-	mvp := program.GetUniformLocation("mvp")
+	model_matrix_uniform := program.GetUniformLocation("model_matrix")
 	if err := CheckGlError(); err != nil {
 		err.Description = "Get uniform mvp"
 		panic(err)
 	}
 
-	vbuf.Unbind(gl.ARRAY_BUFFER)
+	vbo.Unbind(gl.ARRAY_BUFFER)
 
 	if err := CheckGlError(); err != nil {
 		err.Description = "vbo unbind"
 		panic(err)
 	}
-	return Drawable{gl.TRIANGLES, vao, mvp, srefs, len(indices)}
+	return Drawable{gl.TRIANGLES, vao, model_matrix_uniform, srefs, len(indices)}
 }
