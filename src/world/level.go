@@ -10,6 +10,7 @@ type Level struct {
 	Creatures         Creatures
 	Creature_location CreatureLocation
 	Creature_actor    CreatureActor
+	Actor_schedule    ActorSchedule
 }
 
 func MakeLevel() Level {
