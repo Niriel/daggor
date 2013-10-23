@@ -70,3 +70,8 @@ func (self Level) ActorPosition(actor_id ActorId) (Position, bool) {
 	}
 	return location.ToPosition(creature.F), true
 }
+
+func (self Level) SetActorSchedule(actor_schedule ActorSchedule) Level {
+	self.Actor_schedule = actor_schedule
+	return self
+}

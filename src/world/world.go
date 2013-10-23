@@ -69,3 +69,8 @@ func (world World) SetTime(time uint64) World {
 	world.Time = time
 	return world
 }
+
+func (world World) SetActorSchedule(actor_schedule ActorSchedule) World {
+	world.Level = world.Level.SetActorSchedule(actor_schedule)
+	return world
+}

@@ -582,7 +582,7 @@ func RunAI(w world.World, player_action ia.Action) world.World {
 
 	// Temporary: Any creature that is not scheduled yet is added to the
 	// scheduler.
-	schedule := w.Actor_schedule
+	schedule := w.Level.Actor_schedule
 	for actor_id := range w.Level.Actors.Content {
 		index := schedule.PosActorId(actor_id)
 		if index == -1 {
@@ -593,13 +593,13 @@ func RunAI(w world.World, player_action ia.Action) world.World {
 	w = w.SetActorSchedule(schedule)
 
 	for {
-		actor_time, ok := w.Actor_schedule.Next(w.Time)
+		actor_time, ok := w.Level.Actor_schedule.Next(w.Time)
 		if !ok {
 			// Actions can modify the list of actors, so I cannot loop over
 			// all the actors.  This is why I break the loop this way.
-			break
+			break // No more actors to process.
 		}
-		new_schedule, ok := w.Actor_schedule.Remove(actor_time)
+		new_schedule, ok := w.Level.Actor_schedule.Remove(actor_time)
 		if !ok {
 			panic("Could not find actor to remove from scheduler")
 		}
