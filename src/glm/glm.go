@@ -221,8 +221,16 @@ func (self Vector4) Norm() float64 {
 			self[3]*self[3])
 }
 
+func (self Vector4) Norm2() float64 {
+	return self[0]*self[0] + self[1]*self[1] + self[2]*self[2] + self[3]*self[3]
+}
+
 func (self Vector3) Norm() float64 {
-	return float64(math.Sqrt(self[0]*self[0] + self[1]*self[1] + self[2]*self[2]))
+	return math.Sqrt(self[0]*self[0] + self[1]*self[1] + self[2]*self[2])
+}
+
+func (self Vector3) Norm2() float64 {
+	return self[0]*self[0] + self[1]*self[1] + self[2]*self[2]
 }
 
 func (self Vector3) Normed() Vector3 {
