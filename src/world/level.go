@@ -1,27 +1,27 @@
 package world
 
 type Level struct {
-	Floors            Buildings
-	Ceilings          Buildings
-	Walls             [4]Buildings // Sorted by facing.
-	Columns           Buildings
-	Dynamic           Dynamic
-	Actors            Actors
-	Creatures         Creatures
-	Creature_location CreatureLocation
-	Creature_actor    CreatureActor
-	Actor_schedule    ActorSchedule
+	Floors           Buildings
+	Ceilings         Buildings
+	Walls            [4]Buildings // Sorted by facing.
+	Columns          Buildings
+	Dynamic          Dynamic
+	Actors           Actors
+	Creatures        Creatures
+	CreatureLocation CreatureLocation
+	CreatureActor    CreatureActor
+	ActorSchedule    ActorSchedule
 }
 
 func MakeLevel() Level {
 	return Level{
-		Floors:            MakeBuildings(),
-		Ceilings:          MakeBuildings(),
-		Columns:           MakeBuildings(),
-		Actors:            MakeActors(),
-		Creatures:         MakeCreatures(),
-		Creature_location: MakeCreatureLocation(),
-		Creature_actor:    MakeCreatureActor(),
+		Floors:           MakeBuildings(),
+		Ceilings:         MakeBuildings(),
+		Columns:          MakeBuildings(),
+		Actors:           MakeActors(),
+		Creatures:        MakeCreatures(),
+		CreatureLocation: MakeCreatureLocation(),
+		CreatureActor:    MakeCreatureActor(),
 	}
 }
 
@@ -47,20 +47,20 @@ func (level *Level) IsPassable(location Location, direction AbsoluteDirection) b
 }
 
 func (self Level) ActorLocation(actor_id ActorId) (Location, bool) {
-	creature_id, ok := self.Creature_actor.GetCreature(actor_id)
+	creature_id, ok := self.CreatureActor.GetCreature(actor_id)
 	if !ok {
 		return Location{}, false
 	}
-	location, ok := self.Creature_location.GetLocation(creature_id)
+	location, ok := self.CreatureLocation.GetLocation(creature_id)
 	return location, ok
 }
 
 func (self Level) ActorPosition(actor_id ActorId) (Position, bool) {
-	creature_id, ok := self.Creature_actor.GetCreature(actor_id)
+	creature_id, ok := self.CreatureActor.GetCreature(actor_id)
 	if !ok {
 		return Position{}, false
 	}
-	location, ok := self.Creature_location.GetLocation(creature_id)
+	location, ok := self.CreatureLocation.GetLocation(creature_id)
 	if !ok {
 		return Position{}, false
 	}
@@ -72,6 +72,6 @@ func (self Level) ActorPosition(actor_id ActorId) (Position, bool) {
 }
 
 func (self Level) SetActorSchedule(actor_schedule ActorSchedule) Level {
-	self.Actor_schedule = actor_schedule
+	self.ActorSchedule = actor_schedule
 	return self
 }

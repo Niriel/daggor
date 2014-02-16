@@ -57,9 +57,9 @@ func MakeWorld() World {
 	creatures, creature_id := level.Creatures.Add(creature)
 	level.Actors = actors
 	level.Creatures = creatures
-	level.Creature_actor, _ = level.Creature_actor.Add(creature_id, actor_id)
-	level.Creature_location, _ = level.Creature_location.Add(creature_id, Location{})
-	level.Actor_schedule = MakeActorSchedule()
+	level.CreatureActor, _ = level.CreatureActor.Add(creature_id, actor_id)
+	level.CreatureLocation, _ = level.CreatureLocation.Add(creature_id, Location{})
+	level.ActorSchedule = MakeActorSchedule()
 	world.Level = level
 	world.Player_id = actor_id
 	return world

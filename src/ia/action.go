@@ -67,7 +67,7 @@ func (action ActionMoveAbsolute) Execute(w world.World) (world.World, error) {
 		return w, nil
 	}
 	// Only creatures can move.
-	creature_id, ok := w.Level.Creature_actor.GetCreature(action.Subject_id)
+	creature_id, ok := w.Level.CreatureActor.GetCreature(action.Subject_id)
 	if !ok {
 		return w, fmt.Errorf(
 			"Actor %v does not have a corresponding creature.",
@@ -75,7 +75,7 @@ func (action ActionMoveAbsolute) Execute(w world.World) (world.World, error) {
 		)
 	}
 	// We start computing the new location from the current one.
-	new_loc, ok := w.Level.Creature_location.GetLocation(creature_id)
+	new_loc, ok := w.Level.CreatureLocation.GetLocation(creature_id)
 	if !ok {
 		return w, fmt.Errorf(
 			"Actor %v creature %v does not have a corresponding position.",
@@ -96,12 +96,12 @@ func (action ActionMoveAbsolute) Execute(w world.World) (world.World, error) {
 		}
 	}
 	// Move the creature.
-	locations, err := w.Level.Creature_location.Move(creature_id, new_loc)
+	locations, err := w.Level.CreatureLocation.Move(creature_id, new_loc)
 	if err != nil {
 		return w, err
 	}
 	// World was passed by value, we can modify it.
-	w.Level.Creature_location = locations
+	w.Level.CreatureLocation = locations
 	return w, nil
 }
 
@@ -116,7 +116,7 @@ func (action ActionMoveRelative) Execute(w world.World) (world.World, error) {
 	if action.Steps <= 0 {
 		return w, nil
 	}
-	creature_id, ok := w.Level.Creature_actor.GetCreature(action.Subject_id)
+	creature_id, ok := w.Level.CreatureActor.GetCreature(action.Subject_id)
 	if !ok {
 		return w, fmt.Errorf(
 			"Actor %v does not have a corresponding creature.",
@@ -132,7 +132,7 @@ func (action ActionMoveRelative) Execute(w world.World) (world.World, error) {
 		)
 	}
 	direction := creature.F.Add(action.Direction)
-	new_loc, ok := w.Level.Creature_location.GetLocation(creature_id)
+	new_loc, ok := w.Level.CreatureLocation.GetLocation(creature_id)
 	if !ok {
 		return w, fmt.Errorf(
 			"Actor %v creature %v does not have a corresponding position.",
@@ -153,12 +153,12 @@ func (action ActionMoveRelative) Execute(w world.World) (world.World, error) {
 		}
 	}
 	// Move the creature.
-	locations, err := w.Level.Creature_location.Move(creature_id, new_loc)
+	locations, err := w.Level.CreatureLocation.Move(creature_id, new_loc)
 	if err != nil {
 		return w, err
 	}
 	// World was passed by value, we can modify it.
-	w.Level.Creature_location = locations
+	w.Level.CreatureLocation = locations
 	return w, nil
 }
 
@@ -175,7 +175,7 @@ func (action ActionTurn) Execute(w world.World) (world.World, error) {
 	if action.Steps <= 0 {
 		return w, nil
 	}
-	creature_id, ok := w.Level.Creature_actor.GetCreature(action.Subject_id)
+	creature_id, ok := w.Level.CreatureActor.GetCreature(action.Subject_id)
 	if !ok {
 		return w, fmt.Errorf(
 			"Actor %v does not have a corresponding creature.",

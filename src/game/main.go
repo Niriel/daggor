@@ -24,161 +24,161 @@ func errorCallback(err glfw.ErrorCode, desc string) {
 	fmt.Printf("%v: %v\n", err, desc)
 }
 
-type GlfwKeyEvent struct {
+type glfwKeyEvent struct {
 	key      glfw.Key
 	scancode int
 	action   glfw.Action
 	mods     glfw.ModifierKey
 }
 
-const EVENT_LIST_CAP = 4
+const eventListCap = 4
 
-type GlfwKeyEventList struct {
-	list []GlfwKeyEvent
+type glfwKeyEventList struct {
+	list []glfwKeyEvent
 }
 
-func MakeGlfwKeyEventList() *GlfwKeyEventList {
-	return &GlfwKeyEventList{
-		make([]GlfwKeyEvent, 0, EVENT_LIST_CAP),
+func makeGlfwKeyEventList() *glfwKeyEventList {
+	return &glfwKeyEventList{
+		make([]glfwKeyEvent, 0, eventListCap),
 	}
 }
 
-func (self *GlfwKeyEventList) Freeze() []GlfwKeyEvent {
+func (keyEventList *glfwKeyEventList) Freeze() []glfwKeyEvent {
 	// The list of key events is double buffered.  This allows the application
 	// to process events during a frame without having to worry about new
 	// events arriving and growing the list.
-	frozen := self.list
-	self.list = make([]GlfwKeyEvent, 0, EVENT_LIST_CAP)
+	frozen := keyEventList.list
+	keyEventList.list = make([]glfwKeyEvent, 0, eventListCap)
 	return frozen
 }
 
-func (self *GlfwKeyEventList) Callback(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
-	event := GlfwKeyEvent{key, scancode, action, mods}
-	self.list = append(self.list, event)
+func (keyEventList *glfwKeyEventList) Callback(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+	event := glfwKeyEvent{key, scancode, action, mods}
+	keyEventList.list = append(keyEventList.list, event)
 }
 
 const (
-	CUBE_ID = iota
-	PYRAMID_ID
-	FLOOR_ID
-	WALL_ID
-	COLUMN_ID
-	CEILING_ID
-	MONSTER_ID
+	cubeID = iota
+	pyramidID
+	floorID
+	wallID
+	columnID
+	ceilingID
+	monsterID
 )
 
-type Command int
+type command int
 
 const (
-	COMMAND_FORWARD = Command(iota)
-	COMMAND_BACKWARD
-	COMMAND_STRAFE_LEFT
-	COMMAND_STRAFE_RIGHT
-	COMMAND_TURN_LEFT
-	COMMAND_TURN_RIGHT
-	COMMAND_PLACE_FLOOR
-	COMMAND_PLACE_CEILING
-	COMMAND_PLACE_WALL
-	COMMAND_PLACE_COLUMN
-	COMMAND_REMOVE_FLOOR
-	COMMAND_REMOVE_CEILING
-	COMMAND_REMOVE_WALL
-	COMMAND_REMOVE_COLUMN
-	COMMAND_ROTATE_FLOOR_DIRECT
-	COMMAND_ROTATE_FLOOR_RETROGRADE
-	COMMAND_ROTATE_CEILING_DIRECT
-	COMMAND_ROTATE_CEILING_RETROGRADE
-	COMMAND_ROTATE_COLUMN_DIRECT
-	COMMAND_ROTATE_COLUMN_RETROGRADE
-	COMMAND_PLACE_MONSTER
-	COMMAND_REMOVE_MONSTER
-	COMMAND_SAVE
-	COMMAND_LOAD
+	commandForward = command(iota)
+	commandBackward
+	commandStrafeLeft
+	commandStrafeRight
+	commandTurnLeft
+	commandTurnRight
+	commandPlaceFloor
+	commandPlaceCeiling
+	commandPlaceWall
+	commandPlaceColumn
+	commandRemoveFloor
+	commandRemoveCeiling
+	commandRemoveWall
+	commandRemoveColumn
+	commandRotateFloorDirect
+	commandRotateFloorRetrograde
+	commandRotateCeilingDirect
+	commandRotateCeilingRetrograde
+	commandRotateColumnDirect
+	commandRotateColumnRetrograde
+	commandPlaceMonster
+	commandRemoveMonster
+	commandSave
+	commandLoad
 )
 
-func Commands(events []GlfwKeyEvent) []Command {
+func commands(events []glfwKeyEvent) []command {
 	if len(events) == 0 {
 		return nil
 	}
-	result := make([]Command, 0, 1)
+	result := make([]command, 0, 1)
 	for _, event := range events {
 		if event.action == glfw.Press {
 			switch event.key {
 			case glfw.KeyW:
-				result = append(result, COMMAND_FORWARD)
+				result = append(result, commandForward)
 			case glfw.KeyS:
-				result = append(result, COMMAND_BACKWARD)
+				result = append(result, commandBackward)
 			case glfw.KeyA:
-				result = append(result, COMMAND_STRAFE_LEFT)
+				result = append(result, commandStrafeLeft)
 			case glfw.KeyD:
-				result = append(result, COMMAND_STRAFE_RIGHT)
+				result = append(result, commandStrafeRight)
 			case glfw.KeyQ:
-				result = append(result, COMMAND_TURN_LEFT)
+				result = append(result, commandTurnLeft)
 			case glfw.KeyE:
-				result = append(result, COMMAND_TURN_RIGHT)
+				result = append(result, commandTurnRight)
 			case glfw.KeyF:
 				if event.mods&glfw.ModShift == 0 {
-					result = append(result, COMMAND_PLACE_FLOOR)
+					result = append(result, commandPlaceFloor)
 				} else {
-					result = append(result, COMMAND_REMOVE_FLOOR)
+					result = append(result, commandRemoveFloor)
 				}
 			case glfw.KeyC:
 				if event.mods&glfw.ModShift == 0 {
-					result = append(result, COMMAND_PLACE_CEILING)
+					result = append(result, commandPlaceCeiling)
 				} else {
-					result = append(result, COMMAND_REMOVE_CEILING)
+					result = append(result, commandRemoveCeiling)
 				}
 			case glfw.KeyR:
 				if event.mods&glfw.ModShift == 0 {
-					result = append(result, COMMAND_PLACE_WALL)
+					result = append(result, commandPlaceWall)
 				} else {
-					result = append(result, COMMAND_REMOVE_WALL)
+					result = append(result, commandRemoveWall)
 				}
 			case glfw.KeyK:
 				if event.mods&glfw.ModShift == 0 {
-					result = append(result, COMMAND_PLACE_COLUMN)
+					result = append(result, commandPlaceColumn)
 				} else {
-					result = append(result, COMMAND_REMOVE_COLUMN)
+					result = append(result, commandRemoveColumn)
 				}
 			case glfw.KeyM:
 				if event.mods&glfw.ModShift == 0 {
-					result = append(result, COMMAND_PLACE_MONSTER)
+					result = append(result, commandPlaceMonster)
 				} else {
-					result = append(result, COMMAND_REMOVE_MONSTER)
+					result = append(result, commandRemoveMonster)
 				}
 			case glfw.KeyLeftBracket:
-				result = append(result, COMMAND_ROTATE_CEILING_DIRECT)
+				result = append(result, commandRotateCeilingDirect)
 			case glfw.KeyRightBracket:
-				result = append(result, COMMAND_ROTATE_CEILING_RETROGRADE)
+				result = append(result, commandRotateCeilingRetrograde)
 			case glfw.KeySemicolon:
-				result = append(result, COMMAND_ROTATE_COLUMN_DIRECT)
+				result = append(result, commandRotateColumnDirect)
 			case glfw.KeyApostrophe:
-				result = append(result, COMMAND_ROTATE_COLUMN_RETROGRADE)
+				result = append(result, commandRotateColumnRetrograde)
 			case glfw.KeyPeriod:
-				result = append(result, COMMAND_ROTATE_FLOOR_DIRECT)
+				result = append(result, commandRotateFloorDirect)
 			case glfw.KeySlash:
-				result = append(result, COMMAND_ROTATE_FLOOR_RETROGRADE)
+				result = append(result, commandRotateFloorRetrograde)
 			case glfw.KeyF4:
-				result = append(result, COMMAND_SAVE)
+				result = append(result, commandSave)
 			case glfw.KeyF5:
-				result = append(result, COMMAND_LOAD)
+				result = append(result, commandLoad)
 			}
 		}
 	}
 	return result
 }
 
-func ViewMatrix(pos world.Position) glm.Matrix4 {
+func viewMatrix(pos world.Position) glm.Matrix4 {
 	R := glm.RotZ(float64(-90 * pos.F.Value()))
 	T := glm.Vector3{float64(-pos.X), float64(-pos.Y), -.5}.Translation()
 	return R.Mult(T)
 }
 
-type GlobalMatrices struct {
+type globalMatrices struct {
 	Ubo gl.Buffer
 }
 
-func CreateGlobalMatrices() GlobalMatrices {
+func createGlobalMatrices() globalMatrices {
 	ubo := gl.GenBuffer()
 	ubo.Bind(gl.UNIFORM_BUFFER)
 	gl.BufferData(
@@ -188,91 +188,91 @@ func CreateGlobalMatrices() GlobalMatrices {
 		gl.STREAM_DRAW,
 	)
 	ubo.Unbind(gl.UNIFORM_BUFFER)
-	return GlobalMatrices{ubo}
+	return globalMatrices{ubo}
 }
 
-func (self GlobalMatrices) updateMatrix(matrix glm.Matrix4, offset uintptr) {
+func (matrices globalMatrices) updateMatrix(matrix glm.Matrix4, offset uintptr) {
 	glmatrix := matrix.Gl()
-	self.Ubo.Bind(gl.UNIFORM_BUFFER)
+	matrices.Ubo.Bind(gl.UNIFORM_BUFFER)
 	gl.BufferSubData(
 		gl.UNIFORM_BUFFER,
 		int(offset),
 		int(unsafe.Sizeof(glmatrix)),
 		&glmatrix,
 	)
-	self.Ubo.Unbind(gl.UNIFORM_BUFFER)
+	matrices.Ubo.Unbind(gl.UNIFORM_BUFFER)
 }
 
-func (self GlobalMatrices) UpdateProjection(projection glm.Matrix4) {
-	self.updateMatrix(projection, 0)
+func (matrices globalMatrices) UpdateProjection(projection glm.Matrix4) {
+	matrices.updateMatrix(projection, 0)
 }
 
-func (self GlobalMatrices) UpdateView(view glm.Matrix4) {
-	self.updateMatrix(view, unsafe.Sizeof(gl.GLfloat(0))*16)
+func (matrices globalMatrices) UpdateView(view glm.Matrix4) {
+	matrices.updateMatrix(view, unsafe.Sizeof(gl.GLfloat(0))*16)
 }
 
-func (self GlobalMatrices) BindingPoint(binding_point uint) {
-	self.Ubo.BindBufferRange(
+func (matrices globalMatrices) BindingPoint(bindingPoint uint) {
+	matrices.Ubo.BindBufferRange(
 		gl.UNIFORM_BUFFER,
-		binding_point,
+		bindingPoint,
 		0,
 		uint(unsafe.Sizeof(gl.GLfloat(0))*16*2),
 	)
 }
 
-type GlState struct {
+type glState struct {
 	Window           *glfw.Window
-	GlfwKeyEventList *GlfwKeyEventList
+	glfwKeyEventList *glfwKeyEventList
 	Programs         glw.Programs
 	Shapes           [7]glw.Drawable
 	DynaPyramid      glw.StreamDrawable
-	Global_matrices  GlobalMatrices
+	globalMatrices   globalMatrices
 }
 
-type ProgramState struct {
-	Gl    GlState     // Highly mutable, impure.
+type programState struct {
+	Gl    glState     // Highly mutable, impure.
 	World world.World // Immutable, pure.
 }
 
-func CommandToAction(command Command, subject_id world.ActorId) ia.Action {
+func commandToAction(command command, subjectID world.ActorId) ia.Action {
 	var action ia.Action
 	switch command {
 	// If an action is what an actor does when it's its turn to play, then
 	// maybe we don't want turning to be one.  Moving yes, turning no.  We'll
 	// see.
-	case COMMAND_TURN_LEFT:
+	case commandTurnLeft:
 		action = ia.ActionTurn{
-			Subject_id: subject_id,
+			Subject_id: subjectID,
 			Direction:  world.LEFT(),
 			Steps:      1,
 		}
-	case COMMAND_TURN_RIGHT:
+	case commandTurnRight:
 		action = ia.ActionTurn{
-			Subject_id: subject_id,
+			Subject_id: subjectID,
 			Direction:  world.RIGHT(),
 			Steps:      1,
 		}
-	case COMMAND_FORWARD:
+	case commandForward:
 		action = ia.ActionMoveRelative{
-			Subject_id: subject_id,
+			Subject_id: subjectID,
 			Direction:  world.FRONT(),
 			Steps:      1,
 		}
-	case COMMAND_STRAFE_LEFT:
+	case commandStrafeLeft:
 		action = ia.ActionMoveRelative{
-			Subject_id: subject_id,
+			Subject_id: subjectID,
 			Direction:  world.LEFT(),
 			Steps:      1,
 		}
-	case COMMAND_BACKWARD:
+	case commandBackward:
 		action = ia.ActionMoveRelative{
-			Subject_id: subject_id,
+			Subject_id: subjectID,
 			Direction:  world.BACK(),
 			Steps:      1,
 		}
-	case COMMAND_STRAFE_RIGHT:
+	case commandStrafeRight:
 		action = ia.ActionMoveRelative{
-			Subject_id: subject_id,
+			Subject_id: subjectID,
 			Direction:  world.RIGHT(),
 			Steps:      1,
 		}
@@ -280,137 +280,137 @@ func CommandToAction(command Command, subject_id world.ActorId) ia.Action {
 	return action
 }
 
-func CommandsToAction(commands []Command, subject_id world.ActorId) (ia.Action, []Command) {
-	var action_result ia.Action
-	commands_result := make([]Command, 0, cap(commands))
+func commandsToAction(commands []command, subjectID world.ActorId) (ia.Action, []command) {
+	var actionResult ia.Action
+	commandsResult := make([]command, 0, cap(commands))
 	for _, command := range commands {
-		action := CommandToAction(command, subject_id)
+		action := commandToAction(command, subjectID)
 		if action == nil {
-			commands_result = append(commands_result, command)
+			commandsResult = append(commandsResult, command)
 		} else {
-			if action_result == nil {
+			if actionResult == nil {
 				// Keep the first action only, the other are discarded.  It should
 				// not be a big loss anyway as this function is called every frame.
 				// How many keys can you hope to press in 15 milliseconds?
-				action_result = action
+				actionResult = action
 			} else {
 				fmt.Println("Discarded action ", action)
 			}
 		}
 	}
-	return action_result, commands_result
+	return actionResult, commandsResult
 }
 
-func LevelCommand(level world.Level, position world.Position, command Command) world.Level {
-	here_x, here_y := position.X, position.Y
+func levelCommand(level world.Level, position world.Position, command command) world.Level {
+	hereX, hereY := position.X, position.Y
 	there := position.MoveForward(1)
-	there_x, there_y := there.X, there.Y
+	thereX, thereY := there.X, there.Y
 	switch command {
-	case COMMAND_PLACE_FLOOR:
-		floor := world.MakeFloor(FLOOR_ID, world.EAST(), true)
-		level.Floors = level.Floors.Set(there_x, there_y, floor)
-	case COMMAND_PLACE_CEILING:
-		ceiling := world.MakeOrientedBuilding(CEILING_ID, world.EAST())
-		level.Ceilings = level.Ceilings.Set(there_x, there_y, ceiling)
-	case COMMAND_PLACE_WALL:
+	case commandPlaceFloor:
+		floor := world.MakeFloor(floorID, world.EAST(), true)
+		level.Floors = level.Floors.Set(thereX, thereY, floor)
+	case commandPlaceCeiling:
+		ceiling := world.MakeOrientedBuilding(ceilingID, world.EAST())
+		level.Ceilings = level.Ceilings.Set(thereX, thereY, ceiling)
+	case commandPlaceWall:
 		{
 			// If the player faces North, then the wall must face South in order
 			// to face the player.
 			facing := position.F.Add(world.BACK())
 			index := facing.Value()
-			wall := world.MakeWall(WALL_ID, false)
-			level.Walls[index] = level.Walls[index].Set(here_x, here_y, wall)
+			wall := world.MakeWall(wallID, false)
+			level.Walls[index] = level.Walls[index].Set(hereX, hereY, wall)
 		}
-	case COMMAND_PLACE_COLUMN:
-		level.Columns = level.Columns.Set(there_x, there_y, world.MakeOrientedBuilding(COLUMN_ID, world.EAST()))
-	case COMMAND_ROTATE_FLOOR_DIRECT, COMMAND_ROTATE_FLOOR_RETROGRADE:
+	case commandPlaceColumn:
+		level.Columns = level.Columns.Set(thereX, thereY, world.MakeOrientedBuilding(columnID, world.EAST()))
+	case commandRotateFloorDirect, commandRotateFloorRetrograde:
 		{
-			building := level.Floors[world.Location{X: there_x, Y: there_y}]
+			building := level.Floors[world.Location{X: thereX, Y: thereY}]
 			floor, ok := building.(world.Floor)
 			if ok {
-				var rel_dir world.RelativeDirection
-				if command == COMMAND_ROTATE_FLOOR_DIRECT {
-					rel_dir = world.LEFT()
+				var relDir world.RelativeDirection
+				if command == commandRotateFloorDirect {
+					relDir = world.LEFT()
 				} else {
-					rel_dir = world.RIGHT()
+					relDir = world.RIGHT()
 				}
-				floor.F = floor.F.Add(rel_dir)
-				level.Floors = level.Floors.Set(there_x, there_y, floor)
+				floor.F = floor.F.Add(relDir)
+				level.Floors = level.Floors.Set(thereX, thereY, floor)
 			} else {
 				fmt.Println("You cannot rotate that.")
 			}
 		}
-	case COMMAND_ROTATE_COLUMN_DIRECT, COMMAND_ROTATE_COLUMN_RETROGRADE:
+	case commandRotateColumnDirect, commandRotateColumnRetrograde:
 		{
-			var rel_dir world.RelativeDirection
-			if command == COMMAND_ROTATE_COLUMN_DIRECT {
-				rel_dir = world.LEFT()
+			var relDir world.RelativeDirection
+			if command == commandRotateColumnDirect {
+				relDir = world.LEFT()
 			} else {
-				rel_dir = world.RIGHT()
+				relDir = world.RIGHT()
 			}
-			column := level.Columns[world.Location{X: there_x, Y: there_y}]
+			column := level.Columns[world.Location{X: thereX, Y: thereY}]
 			orientable, ok := column.(world.OrientedBuilding)
 			if ok {
-				orientable.F = orientable.F.Add(rel_dir)
-				level.Columns = level.Columns.Set(there_x, there_y, orientable)
+				orientable.F = orientable.F.Add(relDir)
+				level.Columns = level.Columns.Set(thereX, thereY, orientable)
 			} else {
 				fmt.Println("You cannot rotate that.")
 			}
 		}
-	case COMMAND_ROTATE_CEILING_DIRECT, COMMAND_ROTATE_CEILING_RETROGRADE:
+	case commandRotateCeilingDirect, commandRotateCeilingRetrograde:
 		{
-			var rel_dir world.RelativeDirection
-			if command == COMMAND_ROTATE_CEILING_DIRECT {
-				rel_dir = world.LEFT()
+			var relDir world.RelativeDirection
+			if command == commandRotateCeilingDirect {
+				relDir = world.LEFT()
 			} else {
-				rel_dir = world.RIGHT()
+				relDir = world.RIGHT()
 			}
-			ceiling := level.Ceilings[world.Location{X: there_x, Y: there_y}]
+			ceiling := level.Ceilings[world.Location{X: thereX, Y: thereY}]
 			orientable, ok := ceiling.(world.OrientedBuilding)
 			if ok {
-				orientable.F = orientable.F.Add(rel_dir)
-				level.Ceilings = level.Ceilings.Set(there_x, there_y, orientable)
+				orientable.F = orientable.F.Add(relDir)
+				level.Ceilings = level.Ceilings.Set(thereX, thereY, orientable)
 			} else {
 				fmt.Println("You cannot rotate that.")
 			}
 		}
-	case COMMAND_REMOVE_FLOOR:
-		level.Floors = level.Floors.Delete(there_x, there_y)
-	case COMMAND_REMOVE_COLUMN:
-		level.Columns = level.Columns.Delete(there_x, there_y)
-	case COMMAND_REMOVE_CEILING:
-		level.Ceilings = level.Ceilings.Delete(there_x, there_y)
-	case COMMAND_REMOVE_WALL:
+	case commandRemoveFloor:
+		level.Floors = level.Floors.Delete(thereX, thereY)
+	case commandRemoveColumn:
+		level.Columns = level.Columns.Delete(thereX, thereY)
+	case commandRemoveCeiling:
+		level.Ceilings = level.Ceilings.Delete(thereX, thereY)
+	case commandRemoveWall:
 		{
 			// If the player faces North, then the wall must face South in order
 			// to face the player.
 			facing := position.F.Add(world.BACK())
 			index := facing.Value()
-			level.Walls[index] = level.Walls[index].Delete(here_x, here_y)
+			level.Walls[index] = level.Walls[index].Delete(hereX, hereY)
 		}
 
-	case COMMAND_PLACE_MONSTER:
+	case commandPlaceMonster:
 		{
 			creature := world.MakeCreature()
 			creature.F = position.F
-			creatures, creature_id := level.Creatures.Add(creature)
-			actors, actor_id := level.Actors.Add(world.MakeActor())
-			creature_actors, err := level.Creature_actor.Add(creature_id, actor_id)
+			creatures, creatureID := level.Creatures.Add(creature)
+			actors, actorID := level.Actors.Add(world.MakeActor())
+			creatureActors, err := level.CreatureActor.Add(creatureID, actorID)
 			if err != nil {
 				fmt.Println(err)
 				break
 			}
-			creature_locations, err := level.Creature_location.Add(creature_id, there.ToLocation())
+			creatureLocations, err := level.CreatureLocation.Add(creatureID, there.ToLocation())
 			if err != nil {
 				fmt.Println(err)
 				break
 			}
 			level.Creatures = creatures
 			level.Actors = actors
-			level.Creature_actor = creature_actors
-			level.Creature_location = creature_locations
+			level.CreatureActor = creatureActors
+			level.CreatureLocation = creatureLocations
 		}
-	case COMMAND_REMOVE_MONSTER:
+	case commandRemoveMonster:
 		{
 			fmt.Printf("Not implemented.")
 		}
@@ -418,32 +418,32 @@ func LevelCommand(level world.Level, position world.Position, command Command) w
 	return level
 }
 
-func ExecuteCommands(program_state ProgramState, commands []Command) ProgramState {
+func executeCommands(programState programState, commands []command) programState {
 	for _, command := range commands {
 		switch {
-		case command < COMMAND_SAVE:
-			position, ok := program_state.World.Level.ActorPosition(program_state.World.Player_id)
+		case command < commandSave:
+			position, ok := programState.World.Level.ActorPosition(programState.World.Player_id)
 			if !ok {
 				break
 			}
 			// Modify the world around the player character.
-			program_state.World.Level = LevelCommand(program_state.World.Level, position, command)
-		case command == COMMAND_SAVE:
-			err := program_state.World.Save()
+			programState.World.Level = levelCommand(programState.World.Level, position, command)
+		case command == commandSave:
+			err := programState.World.Save()
 			fmt.Println("Save:", err)
-		case command == COMMAND_LOAD:
+		case command == commandLoad:
 			world, err := world.Load()
 			fmt.Println("Load:", err)
 			if err == nil {
-				program_state.World = *world
+				programState.World = *world
 			}
 		}
 	}
-	return program_state
+	return programState
 }
 
 func main() {
-	var program_state ProgramState
+	var programState programState
 	var err error
 	glfw.SetErrorCallback(errorCallback)
 
@@ -456,16 +456,16 @@ func main() {
 	glfw.WindowHint(glfw.ContextVersionMinor, 3)
 	glfw.WindowHint(glfw.SrgbCapable, glfw.True)
 	glfw.WindowHint(glfw.Resizable, glfw.False)
-	program_state.Gl.Window, err = glfw.CreateWindow(640, 480, "Daggor", nil, nil)
+	programState.Gl.Window, err = glfw.CreateWindow(640, 480, "Daggor", nil, nil)
 	if err != nil {
 		panic(err)
 	}
-	defer program_state.Gl.Window.Destroy()
+	defer programState.Gl.Window.Destroy()
 
-	program_state.Gl.GlfwKeyEventList = MakeGlfwKeyEventList()
-	program_state.Gl.Window.SetKeyCallback(program_state.Gl.GlfwKeyEventList.Callback)
+	programState.Gl.glfwKeyEventList = makeGlfwKeyEventList()
+	programState.Gl.Window.SetKeyCallback(programState.Gl.glfwKeyEventList.Callback)
 
-	program_state.Gl.Window.MakeContextCurrent()
+	programState.Gl.Window.MakeContextCurrent()
 	if ec := gl.Init(); ec != 0 {
 		panic(fmt.Sprintf("OpenGL initialization failed with code %v.", ec))
 	}
@@ -480,25 +480,25 @@ func main() {
 		err.Description = "OpenGL has this error right after init for some reason."
 		fmt.Println(err)
 	}
-	major := program_state.Gl.Window.GetAttribute(glfw.ContextVersionMajor)
-	minor := program_state.Gl.Window.GetAttribute(glfw.ContextVersionMinor)
+	major := programState.Gl.Window.GetAttribute(glfw.ContextVersionMajor)
+	minor := programState.Gl.Window.GetAttribute(glfw.ContextVersionMinor)
 	fmt.Printf("OpenGL version %v.%v.\n", major, minor)
 	if (major < 3) || (major == 3 && minor < 3) {
 		panic("OpenGL version 3.3 required, your video card/driver does not seem to support it.")
 	}
 
-	program_state.Gl.Programs = glw.MakePrograms()
+	programState.Gl.Programs = glw.MakePrograms()
 
-	const UNIFORM_BINDING = 0
+	const UniformBinding = 0
 
-	program_state.Gl.Shapes[CUBE_ID] = glw.Cube(program_state.Gl.Programs, UNIFORM_BINDING)
-	program_state.Gl.Shapes[PYRAMID_ID] = glw.Pyramid(program_state.Gl.Programs, UNIFORM_BINDING)
-	program_state.Gl.Shapes[FLOOR_ID] = glw.Floor(program_state.Gl.Programs, UNIFORM_BINDING)
-	program_state.Gl.Shapes[WALL_ID] = glw.Wall(program_state.Gl.Programs, UNIFORM_BINDING)
-	program_state.Gl.Shapes[COLUMN_ID] = glw.Column(program_state.Gl.Programs, UNIFORM_BINDING)
-	program_state.Gl.Shapes[CEILING_ID] = glw.Ceiling(program_state.Gl.Programs, UNIFORM_BINDING)
-	program_state.Gl.Shapes[MONSTER_ID] = glw.Monster(program_state.Gl.Programs, UNIFORM_BINDING)
-	program_state.Gl.DynaPyramid = glw.DynaPyramid(program_state.Gl.Programs)
+	programState.Gl.Shapes[cubeID] = glw.Cube(programState.Gl.Programs, UniformBinding)
+	programState.Gl.Shapes[pyramidID] = glw.Pyramid(programState.Gl.Programs, UniformBinding)
+	programState.Gl.Shapes[floorID] = glw.Floor(programState.Gl.Programs, UniformBinding)
+	programState.Gl.Shapes[wallID] = glw.Wall(programState.Gl.Programs, UniformBinding)
+	programState.Gl.Shapes[columnID] = glw.Column(programState.Gl.Programs, UniformBinding)
+	programState.Gl.Shapes[ceilingID] = glw.Ceiling(programState.Gl.Programs, UniformBinding)
+	programState.Gl.Shapes[monsterID] = glw.Monster(programState.Gl.Programs, UniformBinding)
+	programState.Gl.DynaPyramid = glw.DynaPyramid(programState.Gl.Programs)
 
 	// I do not like the default reference frame of OpenGl.
 	// By default, we look in the direction -z, and y points up.
@@ -509,11 +509,11 @@ func main() {
 	// toward +x is that I use the convention for trigonometry:
 	// an angle of 0 points to the right (east) of the trigonometric
 	// circle.  Bonus point: this matches Blender's reference frame.
-	my_frame := glm.ZUP.Mult(glm.RotZ(90))
-	projection_matrix := glm.PerspectiveProj(110, 640./480., .1, 100).Mult(my_frame)
-	program_state.Gl.Global_matrices = CreateGlobalMatrices()
-	program_state.Gl.Global_matrices.BindingPoint(UNIFORM_BINDING)
-	program_state.Gl.Global_matrices.UpdateProjection(projection_matrix)
+	myFrame := glm.ZUP.Mult(glm.RotZ(90))
+	projectionMatrix := glm.PerspectiveProj(110, 640./480., .1, 100).Mult(myFrame)
+	programState.Gl.globalMatrices = createGlobalMatrices()
+	programState.Gl.globalMatrices.BindingPoint(UniformBinding)
+	programState.Gl.globalMatrices.UpdateProjection(projectionMatrix)
 
 	gl.Enable(gl.FRAMEBUFFER_SRGB)
 	gl.Enable(gl.DEPTH_TEST)
@@ -521,98 +521,98 @@ func main() {
 	gl.CullFace(gl.BACK)
 	gl.FrontFace(gl.CCW)
 
-	program_state.World = world.MakeWorld()
-	MainLoop(program_state)
+	programState.World = world.MakeWorld()
+	mainLoop(programState)
 }
 
-func MainLoop(program_state ProgramState) ProgramState {
-	const tick_period = 1000000000 / 60
-	ticker := time.NewTicker(tick_period * time.Nanosecond)
-	keep_ticking := true
-	for keep_ticking {
+func mainLoop(programState programState) programState {
+	const tickPeriod = 1000000000 / 60
+	ticker := time.NewTicker(tickPeriod * time.Nanosecond)
+	keepTicking := true
+	for keepTicking {
 		select {
 		case _, ok := <-ticker.C:
 			{
 				if ok {
-					program_state, keep_ticking = OnTick(program_state, tick_period)
-					if !keep_ticking {
+					programState, keepTicking = onTick(programState, tickPeriod)
+					if !keepTicking {
 						fmt.Println("No more ticks.")
 						ticker.Stop()
 					}
 				} else {
 					fmt.Println("Ticker closed, weird.")
-					keep_ticking = false
+					keepTicking = false
 				}
 			}
 		}
 	}
-	return program_state
+	return programState
 }
 
-func OnTick(program_state ProgramState, dt uint64) (ProgramState, bool) {
+func onTick(programState programState, dt uint64) (programState, bool) {
 	glfw.PollEvents()
-	keep_ticking := !program_state.Gl.Window.ShouldClose()
-	if keep_ticking {
+	keepTicking := !programState.Gl.Window.ShouldClose()
+	if keepTicking {
 		// Read raw inputs.
-		keys := program_state.Gl.GlfwKeyEventList.Freeze()
+		keys := programState.Gl.glfwKeyEventList.Freeze()
 		// Analyze the inputs, see what they mean.
-		commands := Commands(keys)
+		commands := commands(keys)
 		// One of these commands may correspond to an action of the player's actor.
 		// We take it out so that we can process it in the IA phase.
 		// The remaining commands are kept for further processing.
-		player_action, commands := CommandsToAction(commands, program_state.World.Player_id)
+		playerAction, commands := commandsToAction(commands, programState.World.Player_id)
 		// Evolve the program one step.
-		program_state.World.Time += dt // No side effect, we own a copy.
+		programState.World.Time += dt // No side effect, we own a copy.
 		// $$$ THERE COULD BE SIDE EFFECTS HERE ACTUALLY:  IF I GAVE A POINTER
 		// TO THE WORLD OR PROGRAM STATE TO SOMETHING.  NEED TO CORRECT THAT.
-		program_state = ExecuteCommands(program_state, commands)
+		programState = executeCommands(programState, commands)
 		//
-		program_state.World = RunAI(program_state.World, player_action)
-		// Render on screen.
-		Render(program_state)
-		program_state.Gl.Window.SwapBuffers()
+		programState.World = runAI(programState.World, playerAction)
+		// render on screen.
+		render(programState)
+		programState.Gl.Window.SwapBuffers()
 	}
-	return program_state, keep_ticking
+	return programState, keepTicking
 }
 
-func RunAI(w world.World, player_action ia.Action) world.World {
+func runAI(w world.World, playerAction ia.Action) world.World {
 	var action ia.Action
 	// It's like on a board game.  Every one plays when it is their turn.
 	// This function is called every frame.
 
 	// Temporary: Any creature that is not scheduled yet is added to the
 	// scheduler.
-	schedule := w.Level.Actor_schedule
-	for actor_id := range w.Level.Actors.Content {
-		index := schedule.PosActorId(actor_id)
+	schedule := w.Level.ActorSchedule
+	for actorID := range w.Level.Actors.Content {
+		index := schedule.PosActorId(actorID)
 		if index == -1 {
-			fmt.Println("Force scheduling", actor_id)
-			schedule = schedule.Add(actor_id, w.Time)
+			fmt.Println("Force scheduling", actorID)
+			schedule = schedule.Add(actorID, w.Time)
 		}
 	}
 	w = w.SetActorSchedule(schedule)
 
 	for {
-		actor_time, ok := w.Level.Actor_schedule.Next(w.Time)
+		actorTime, ok := w.Level.ActorSchedule.Next(w.Time)
 		if !ok {
 			// Actions can modify the list of actors, so I cannot loop over
 			// all the actors.  This is why I break the loop this way.
 			break // No more actors to process.
 		}
-		new_schedule, ok := w.Level.Actor_schedule.Remove(actor_time)
+		newSchedule, ok := w.Level.ActorSchedule.Remove(actorTime)
 		if !ok {
 			panic("Could not find actor to remove from scheduler")
 		}
-		w = w.SetActorSchedule(new_schedule)
-		if actor_time.Actor_id == w.Player_id {
-			action = player_action
+		w = w.SetActorSchedule(newSchedule)
+		if actorTime.Actor_id == w.Player_id {
+			action = playerAction
 		} else {
-			action = ia.DecideAction(actor_time.Actor_id)
+			action = ia.DecideAction(actorTime.Actor_id)
 		}
 		if action != nil {
 			var err error
-			new_schedule = new_schedule.Add(actor_time.Actor_id, actor_time.Time+100000000)
-			w = w.SetActorSchedule(new_schedule)
+			newSchedule = newSchedule.Add(actorTime.Actor_id, actorTime.Time+100000000)
+			w = w.SetActorSchedule(newSchedule)
 			w, err = action.Execute(w)
 			if err != nil {
 				fmt.Println(err)
@@ -621,10 +621,10 @@ func RunAI(w world.World, player_action ia.Action) world.World {
 			// Nil actions should only happen for the player.  The player is the
 			// only actor who can decide not to act.  All other actors decide
 			// an action, even if it is just a waiting action.
-			if actor_time.Actor_id == w.Player_id {
+			if actorTime.Actor_id == w.Player_id {
 				// Reschedule the player for next turn.
-				new_schedule = new_schedule.Add(actor_time.Actor_id, w.Time+1)
-				w = w.SetActorSchedule(new_schedule)
+				newSchedule = newSchedule.Add(actorTime.Actor_id, w.Time+1)
+				w = w.SetActorSchedule(newSchedule)
 			} else {
 				panic("Only the player is allowed to idle.")
 			}
@@ -633,74 +633,74 @@ func RunAI(w world.World, player_action ia.Action) world.World {
 	return w
 }
 
-func Render(program_state ProgramState) {
+func render(programState programState) {
 	gl.ClearColor(0.0, 0.0, 0.4, 0.0)
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-	actor_id := program_state.World.Player_id
-	position, ok := program_state.World.Level.ActorPosition(actor_id)
+	actorID := programState.World.Player_id
+	position, ok := programState.World.Level.ActorPosition(actorID)
 	if !ok {
 		panic("Could not find player's character position.")
 	}
-	program_state.Gl.Global_matrices.UpdateView(ViewMatrix(position))
-	RenderBuildings(
-		program_state.World.Level.Floors,
+	programState.Gl.globalMatrices.UpdateView(viewMatrix(position))
+	renderBuildings(
+		programState.World.Level.Floors,
 		0, 0,
 		nil,
-		program_state.Gl,
+		programState.Gl,
 	)
-	RenderBuildings(
-		program_state.World.Level.Ceilings,
+	renderBuildings(
+		programState.World.Level.Ceilings,
 		0, 0,
 		nil,
-		program_state.Gl,
+		programState.Gl,
 	)
-	RenderBuildings(
-		program_state.World.Level.Columns,
+	renderBuildings(
+		programState.World.Level.Columns,
 		-.5, -.5,
 		nil,
-		program_state.Gl,
+		programState.Gl,
 	)
 	for facing := 0; facing < 4; facing++ {
-		default_r := glm.RotZ(float64(90 * facing))
-		RenderBuildings(
-			program_state.World.Level.Walls[facing],
+		defaultR := glm.RotZ(float64(90 * facing))
+		renderBuildings(
+			programState.World.Level.Walls[facing],
 			0, 0,
-			&default_r,
-			program_state.Gl,
+			&defaultR,
+			programState.Gl,
 		)
 	}
 
-	creature_id, ok := program_state.World.Level.Creature_actor.GetCreature(actor_id)
-	creature_locations := program_state.World.Level.Creature_location
+	creatureID, ok := programState.World.Level.CreatureActor.GetCreature(actorID)
+	creatureLocations := programState.World.Level.CreatureLocation
 	if ok {
 		// Do not render the player creature.
-		creature_locations, _ = creature_locations.RemoveCreature(creature_id)
+		creatureLocations, _ = creatureLocations.RemoveCreature(creatureID)
 	}
-	RenderCreatures(
-		creature_locations,
-		program_state.World.Level.Creatures,
-		program_state.Gl,
+	renderCreatures(
+		creatureLocations,
+		programState.World.Level.Creatures,
+		programState.Gl,
 	)
 
 	//// Stupid render of the one dynamic object.
-	//dyn := program_state.World.Level.Dynamic
-	//m := dyn.ModelMat(program_state.World.Time)
-	//mvp := (program_state.Gl.P).Mult(v).Mult(m).Gl()
-	//pyr := program_state.Gl.DynaPyramid
-	//pyr.UpdateMesh(dyn.Mesh(program_state.World.Time))
-	//pyr.Draw(program_state.Gl.Programs, &mvp)
+	//dyn := programState.World.Level.Dynamic
+	//m := dyn.ModelMat(programState.World.Time)
+	//mvp := (programState.Gl.P).Mult(v).Mult(m).Gl()
+	//pyr := programState.Gl.DynaPyramid
+	//pyr.UpdateMesh(dyn.Mesh(programState.World.Time))
+	//pyr.Draw(programState.Gl.Programs, &mvp)
 }
 
-func RenderBuildings(
+func renderBuildings(
 	buildings world.Buildings,
-	offset_x, offset_y float64,
-	default_r *glm.Matrix4, // Can be nil.
-	gl_state GlState,
+	offsetX, offsetY float64,
+	defaultR *glm.Matrix4, // Can be nil.
+	glState glState,
 ) {
 	for coords, building := range buildings {
 		m := glm.Vector3{
-			float64(coords.X) + offset_x,
-			float64(coords.Y) + offset_y,
+			float64(coords.X) + offsetX,
+			float64(coords.Y) + offsetY,
 			0,
 		}.Translation()
 		facer, ok := building.(world.Facer)
@@ -710,29 +710,29 @@ func RenderBuildings(
 			m = m.Mult(r)
 		} else {
 			// Buildings without facing receive the provided default facing.
-			// It is given as a precalculated rotation matrix `default_r`.
-			m = m.Mult(*default_r)
+			// It is given as a precalculated rotation matrix `defaultR`.
+			m = m.Mult(*defaultR)
 		}
 		mgl := m.Gl()
-		gl_state.Shapes[building.Model()].Draw(gl_state.Programs, &mgl)
+		glState.Shapes[building.Model()].Draw(glState.Programs, &mgl)
 	}
 }
 
-func RenderCreatures(
-	creature_locations world.CreatureLocation,
+func renderCreatures(
+	creatureLocations world.CreatureLocation,
 	creatures world.Creatures,
-	gl_state GlState,
+	glState glState,
 ) {
-	for creature_id, creature_location := range creature_locations.Cl {
-		creature, ok := creatures.Get(creature_id)
+	for creatureID, creatureLocation := range creatureLocations.Cl {
+		creature, ok := creatures.Get(creatureID)
 		if ok {
 			m := glm.Vector3{
-				float64(creature_location.X),
-				float64(creature_location.Y),
+				float64(creatureLocation.X),
+				float64(creatureLocation.Y),
 				0,
 			}.Translation().Mult(glm.RotZ(float64(90 * creature.F.Value())))
 			mgl := m.Gl()
-			gl_state.Shapes[MONSTER_ID].Draw(gl_state.Programs, &mgl)
+			glState.Shapes[monsterID].Draw(glState.Programs, &mgl)
 		}
 	}
 }
