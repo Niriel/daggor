@@ -511,3 +511,24 @@ to the simple one creature per tile.  I have yet to solve the problem of
 teleportation.  Maybe later, that is game dependent.
 
 So I decided.  1.
+
+
+Animations.
+===========
+Although the game is turned-based, I wish to animate things smoothly.
+There are two clocks: the real-world clock and the game-world clock.
+The game-world clock freezes every time the game asks for a player to act.
+The real-world clock never freezes.
+Any animation of the user interface should depend on the real-world clock.
+Any animation of monsters, torches, particle effects, lighting, etc, should
+follow the game-world clock.
+We may want to allow for the game-world objects to also listen to the real-world
+clock if totally freezing everything feels lifeless.
+Maybe torches and decorating things could follow the real-world clock, keep
+flickering or moving even when the game is paused.  This is acceptable because
+it is purely visual.  Another example could be a breathing creature.  The
+breathing would rely on the real-world clock, as would the blinking.  Other
+motions (swing a weapon) follow the in-game clock.  Both clocks can be used at
+the same time for a given animation: the real-world clock adding small
+modulations on top of the game-world clock solely to breathe life into the game
+even in paused scenes.
