@@ -242,39 +242,39 @@ func commandToAction(command command, subjectID world.ActorId) ia.Action {
 	// see.
 	case commandTurnLeft:
 		action = ia.ActionTurn{
-			Subject_id: subjectID,
-			Direction:  world.LEFT(),
-			Steps:      1,
+			SubjectID: subjectID,
+			Direction: world.LEFT(),
+			Steps:     1,
 		}
 	case commandTurnRight:
 		action = ia.ActionTurn{
-			Subject_id: subjectID,
-			Direction:  world.RIGHT(),
-			Steps:      1,
+			SubjectID: subjectID,
+			Direction: world.RIGHT(),
+			Steps:     1,
 		}
 	case commandForward:
 		action = ia.ActionMoveRelative{
-			Subject_id: subjectID,
-			Direction:  world.FRONT(),
-			Steps:      1,
+			SubjectID: subjectID,
+			Direction: world.FRONT(),
+			Steps:     1,
 		}
 	case commandStrafeLeft:
 		action = ia.ActionMoveRelative{
-			Subject_id: subjectID,
-			Direction:  world.LEFT(),
-			Steps:      1,
+			SubjectID: subjectID,
+			Direction: world.LEFT(),
+			Steps:     1,
 		}
 	case commandBackward:
 		action = ia.ActionMoveRelative{
-			Subject_id: subjectID,
-			Direction:  world.BACK(),
-			Steps:      1,
+			SubjectID: subjectID,
+			Direction: world.BACK(),
+			Steps:     1,
 		}
 	case commandStrafeRight:
 		action = ia.ActionMoveRelative{
-			Subject_id: subjectID,
-			Direction:  world.RIGHT(),
-			Steps:      1,
+			SubjectID: subjectID,
+			Direction: world.RIGHT(),
+			Steps:     1,
 		}
 	}
 	return action

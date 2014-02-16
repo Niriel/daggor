@@ -50,15 +50,15 @@ type Action interface {
 type ActionWait struct{}
 
 // The Wait action does nothing at all, it does not even increment a time variable.
-func (self ActionWait) Execute(w world.World) (world.World, error) {
+func (action ActionWait) Execute(w world.World) (world.World, error) {
 	return w, nil
 }
 
 // Move: That action moves one actor to a neighboring tile.
 type ActionMoveAbsolute struct {
-	Subject_id world.ActorId
-	Direction  world.AbsoluteDirection
-	Steps      uint
+	SubjectID world.ActorId
+	Direction world.AbsoluteDirection
+	Steps     uint
 }
 
 func (action ActionMoveAbsolute) Execute(w world.World) (world.World, error) {
@@ -67,36 +67,36 @@ func (action ActionMoveAbsolute) Execute(w world.World) (world.World, error) {
 		return w, nil
 	}
 	// Only creatures can move.
-	creature_id, ok := w.Level.CreatureActor.GetCreature(action.Subject_id)
+	creatureID, ok := w.Level.CreatureActor.GetCreature(action.SubjectID)
 	if !ok {
 		return w, fmt.Errorf(
-			"Actor %v does not have a corresponding creature.",
-			action.Subject_id,
+			"actor %v does not have a corresponding creature",
+			action.SubjectID,
 		)
 	}
 	// We start computing the new location from the current one.
-	new_loc, ok := w.Level.CreatureLocation.GetLocation(creature_id)
+	newLoc, ok := w.Level.CreatureLocation.GetLocation(creatureID)
 	if !ok {
 		return w, fmt.Errorf(
-			"Actor %v creature %v does not have a corresponding position.",
-			action.Subject_id,
-			creature_id,
+			"actor %v creature %v does not have a corresponding position",
+			action.SubjectID,
+			creatureID,
 		)
 	}
-	for step_id := uint(0); step_id < action.Steps; step_id++ {
-		if w.Level.IsPassable(new_loc, action.Direction) {
-			new_loc = new_loc.MoveAbsolute(action.Direction, 1)
+	for stepID := uint(0); stepID < action.Steps; stepID++ {
+		if w.Level.IsPassable(newLoc, action.Direction) {
+			newLoc = newLoc.MoveAbsolute(action.Direction, 1)
 		} else {
 			return w, fmt.Errorf(
-				"Actor %v creature %v cannot pass %v.",
-				action.Subject_id,
-				creature_id,
-				new_loc,
+				"actor %v creature %v cannot pass %v",
+				action.SubjectID,
+				creatureID,
+				newLoc,
 			)
 		}
 	}
 	// Move the creature.
-	locations, err := w.Level.CreatureLocation.Move(creature_id, new_loc)
+	locations, err := w.Level.CreatureLocation.Move(creatureID, newLoc)
 	if err != nil {
 		return w, err
 	}
@@ -107,53 +107,53 @@ func (action ActionMoveAbsolute) Execute(w world.World) (world.World, error) {
 
 // Move: That action moves one actor to a neighboring tile.
 type ActionMoveRelative struct {
-	Subject_id world.ActorId
-	Direction  world.RelativeDirection
-	Steps      uint
+	SubjectID world.ActorId
+	Direction world.RelativeDirection
+	Steps     uint
 }
 
 func (action ActionMoveRelative) Execute(w world.World) (world.World, error) {
 	if action.Steps <= 0 {
 		return w, nil
 	}
-	creature_id, ok := w.Level.CreatureActor.GetCreature(action.Subject_id)
+	creatureID, ok := w.Level.CreatureActor.GetCreature(action.SubjectID)
 	if !ok {
 		return w, fmt.Errorf(
-			"Actor %v does not have a corresponding creature.",
-			action.Subject_id,
+			"actor %v does not have a corresponding creature",
+			action.SubjectID,
 		)
 	}
-	creature, ok := w.Level.Creatures.Get(creature_id)
+	creature, ok := w.Level.Creatures.Get(creatureID)
 	if !ok {
 		return w, fmt.Errorf(
-			"Actor %v creature %v does not have a corresponding creature.",
-			action.Subject_id,
-			creature_id,
+			"actor %v creature %v does not have a corresponding creature",
+			action.SubjectID,
+			creatureID,
 		)
 	}
 	direction := creature.F.Add(action.Direction)
-	new_loc, ok := w.Level.CreatureLocation.GetLocation(creature_id)
+	newLoc, ok := w.Level.CreatureLocation.GetLocation(creatureID)
 	if !ok {
 		return w, fmt.Errorf(
-			"Actor %v creature %v does not have a corresponding position.",
-			action.Subject_id,
-			creature_id,
+			"actor %v creature %v does not have a corresponding position",
+			action.SubjectID,
+			creatureID,
 		)
 	}
-	for step_id := uint(0); step_id < action.Steps; step_id++ {
-		if w.Level.IsPassable(new_loc, direction) {
-			new_loc = new_loc.MoveAbsolute(direction, 1)
+	for stepID := uint(0); stepID < action.Steps; stepID++ {
+		if w.Level.IsPassable(newLoc, direction) {
+			newLoc = newLoc.MoveAbsolute(direction, 1)
 		} else {
 			return w, fmt.Errorf(
-				"Actor %v creature %v cannot pass %v.",
-				action.Subject_id,
-				creature_id,
-				new_loc,
+				"actor %v creature %v cannot pass %v",
+				action.SubjectID,
+				creatureID,
+				newLoc,
 			)
 		}
 	}
 	// Move the creature.
-	locations, err := w.Level.CreatureLocation.Move(creature_id, new_loc)
+	locations, err := w.Level.CreatureLocation.Move(creatureID, newLoc)
 	if err != nil {
 		return w, err
 	}
@@ -166,45 +166,45 @@ func (action ActionMoveRelative) Execute(w world.World) (world.World, error) {
 // Should it be an action?  I mean, should it take one turn?  That's left to the
 // user to choose.
 type ActionTurn struct {
-	Subject_id world.ActorId
-	Direction  world.RelativeDirection
-	Steps      uint
+	SubjectID world.ActorId
+	Direction world.RelativeDirection
+	Steps     uint
 }
 
 func (action ActionTurn) Execute(w world.World) (world.World, error) {
 	if action.Steps <= 0 {
 		return w, nil
 	}
-	creature_id, ok := w.Level.CreatureActor.GetCreature(action.Subject_id)
+	creatureID, ok := w.Level.CreatureActor.GetCreature(action.SubjectID)
 	if !ok {
 		return w, fmt.Errorf(
-			"Actor %v does not have a corresponding creature.",
-			action.Subject_id,
+			"actor %v does not have a corresponding creature",
+			action.SubjectID,
 		)
 	}
-	creature, ok := w.Level.Creatures.Get(creature_id)
+	creature, ok := w.Level.Creatures.Get(creatureID)
 	if !ok {
 		return w, fmt.Errorf(
-			"Actor %v creature %v does not have a corresponding creature.",
-			action.Subject_id,
-			creature_id,
+			"actor %v creature %v does not have a corresponding creature",
+			action.SubjectID,
+			creatureID,
 		)
 	}
 	// Payload.
 	facing := creature.F
-	for step_id := uint(0); step_id < action.Steps; step_id++ {
+	for stepID := uint(0); stepID < action.Steps; stepID++ {
 		facing = facing.Add(action.Direction)
 	}
 	creature.F = facing
 	// /Payload.
-	w.Level.Creatures = w.Level.Creatures.Set(creature_id, creature)
+	w.Level.Creatures = w.Level.Creatures.Set(creatureID, creature)
 	return w, nil
 }
 
-func DecideAction(subject_id world.ActorId) Action {
+func DecideAction(subjectID world.ActorId) Action {
 	return ActionTurn{
-		Subject_id: subject_id,
-		Direction:  world.LEFT(),
-		Steps:      1,
+		SubjectID: subjectID,
+		Direction: world.LEFT(),
+		Steps:     1,
 	}
 }
