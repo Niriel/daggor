@@ -48,6 +48,8 @@ type RelativeDirection interface {
 	concrete() relativeDirection
 	// Returns 0, 1, 2 or 3 for FRONT, LEFT, BACK or RIGHT.
 	Value() int
+	// Returns -1 for LEFT, +1 for RIGHT, 0 for the rest.
+	Sign() int
 	// Combines two relative directions together.
 	Add(rel RelativeDirection) RelativeDirection
 }
@@ -88,6 +90,15 @@ func (rel relativeDirection) concrete() relativeDirection {
 }
 func (rel relativeDirection) Value() int {
 	return rel.value
+}
+func (rel relativeDirection) Sign() int {
+	switch rel.value {
+	case 1:
+		return -1
+	case 3:
+		return 1
+	}
+	return 0
 }
 func (rel0 relativeDirection) Add(rel1 RelativeDirection) RelativeDirection {
 	return relativeDirection{(rel0.value + rel1.Value()) % 4}

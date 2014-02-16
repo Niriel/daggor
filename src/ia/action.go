@@ -58,7 +58,7 @@ func (self ActionWait) Execute(w world.World) (world.World, error) {
 type ActionMoveAbsolute struct {
 	Subject_id world.ActorId
 	Direction  world.AbsoluteDirection
-	Steps      int
+	Steps      uint
 }
 
 func (action ActionMoveAbsolute) Execute(w world.World) (world.World, error) {
@@ -83,7 +83,7 @@ func (action ActionMoveAbsolute) Execute(w world.World) (world.World, error) {
 			creature_id,
 		)
 	}
-	for step_id := 0; step_id < action.Steps; step_id++ {
+	for step_id := uint(0); step_id < action.Steps; step_id++ {
 		if w.Level.IsPassable(new_loc, action.Direction) {
 			new_loc = new_loc.MoveAbsolute(action.Direction, 1)
 		} else {
@@ -109,7 +109,7 @@ func (action ActionMoveAbsolute) Execute(w world.World) (world.World, error) {
 type ActionMoveRelative struct {
 	Subject_id world.ActorId
 	Direction  world.RelativeDirection
-	Steps      int
+	Steps      uint
 }
 
 func (action ActionMoveRelative) Execute(w world.World) (world.World, error) {
@@ -140,7 +140,7 @@ func (action ActionMoveRelative) Execute(w world.World) (world.World, error) {
 			creature_id,
 		)
 	}
-	for step_id := 0; step_id < action.Steps; step_id++ {
+	for step_id := uint(0); step_id < action.Steps; step_id++ {
 		if w.Level.IsPassable(new_loc, direction) {
 			new_loc = new_loc.MoveAbsolute(direction, 1)
 		} else {
@@ -168,7 +168,7 @@ func (action ActionMoveRelative) Execute(w world.World) (world.World, error) {
 type ActionTurn struct {
 	Subject_id world.ActorId
 	Direction  world.RelativeDirection
-	Steps      int
+	Steps      uint
 }
 
 func (action ActionTurn) Execute(w world.World) (world.World, error) {
@@ -192,7 +192,7 @@ func (action ActionTurn) Execute(w world.World) (world.World, error) {
 	}
 	// Payload.
 	facing := creature.F
-	for step_id := 0; step_id < action.Steps; step_id++ {
+	for step_id := uint(0); step_id < action.Steps; step_id++ {
 		facing = facing.Add(action.Direction)
 	}
 	creature.F = facing
