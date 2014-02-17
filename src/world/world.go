@@ -11,7 +11,7 @@ import (
 type ModelId uint16
 
 type World struct {
-	Player_id ActorId // Later, there will also be a LevelId too in here.
+	Player_id ActorID // Later, there will also be a LevelId too in here.
 	Level     Level   // Later, there will be many.
 	Time      uint64  // Nanoseconds.
 }
@@ -53,7 +53,7 @@ func MakeWorld() World {
 	// Place the player in the world.
 	level := world.Level
 	creature := Creature{F: EAST()}
-	actors, actor_id, _ := level.Actors.Spawn()
+	actors, actor_id := level.Actors.Add(MakeActor())
 	creatures, creature_id := level.Creatures.Add(creature)
 	level.Actors = actors
 	level.Creatures = creatures

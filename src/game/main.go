@@ -234,7 +234,7 @@ type programState struct {
 	World world.World // Immutable, pure.
 }
 
-func commandToAction(command command, subjectID world.ActorId) ia.Action {
+func commandToAction(command command, subjectID world.ActorID) ia.Action {
 	var action ia.Action
 	switch command {
 	// If an action is what an actor does when it's its turn to play, then
@@ -280,7 +280,7 @@ func commandToAction(command command, subjectID world.ActorId) ia.Action {
 	return action
 }
 
-func commandsToAction(commands []command, subjectID world.ActorId) (ia.Action, []command) {
+func commandsToAction(commands []command, subjectID world.ActorID) (ia.Action, []command) {
 	var actionResult ia.Action
 	commandsResult := make([]command, 0, cap(commands))
 	for _, command := range commands {
@@ -583,8 +583,8 @@ func runAI(w world.World, playerAction ia.Action) world.World {
 	// Temporary: Any creature that is not scheduled yet is added to the
 	// scheduler.
 	schedule := w.Level.ActorSchedule
-	for actorID := range w.Level.Actors.Content {
-		index := schedule.PosActorId(actorID)
+	for actorID := range w.Level.Actors.Content() {
+		index := schedule.PosActorID(actorID)
 		if index == -1 {
 			fmt.Println("Force scheduling", actorID)
 			schedule = schedule.Add(actorID, w.Time)

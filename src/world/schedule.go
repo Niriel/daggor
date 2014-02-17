@@ -2,7 +2,7 @@ package world
 
 type ActorTime struct {
 	Time            uint64
-	Actor_id        ActorId
+	Actor_id        ActorID
 	Stability_index uint64 // To ensure stable sorting.
 }
 
@@ -53,7 +53,7 @@ func (self ActorSchedule) Next(time uint64) (ActorTime, bool) {
 	return ActorTime{}, false
 }
 
-func (self ActorSchedule) PosActorId(actor_id ActorId) int {
+func (self ActorSchedule) PosActorID(actor_id ActorID) int {
 	for index, actor_time := range self.Actor_times {
 		if actor_time.Actor_id == actor_id {
 			return index
@@ -93,7 +93,7 @@ func (self ActorSchedule) Remove(actor_time ActorTime) (ActorSchedule, bool) {
 	return self, true
 }
 
-func (self ActorSchedule) Add(actor_id ActorId, time uint64) ActorSchedule {
+func (self ActorSchedule) Add(actor_id ActorID, time uint64) ActorSchedule {
 	new_entry := ActorTime{
 		Actor_id:        actor_id,
 		Time:            time,

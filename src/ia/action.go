@@ -56,7 +56,7 @@ func (action ActionWait) Execute(w world.World) (world.World, error) {
 
 // Move: That action moves one actor to a neighboring tile.
 type ActionMoveAbsolute struct {
-	SubjectID world.ActorId
+	SubjectID world.ActorID
 	Direction world.AbsoluteDirection
 	Steps     uint
 }
@@ -107,7 +107,7 @@ func (action ActionMoveAbsolute) Execute(w world.World) (world.World, error) {
 
 // Move: That action moves one actor to a neighboring tile.
 type ActionMoveRelative struct {
-	SubjectID world.ActorId
+	SubjectID world.ActorID
 	Direction world.RelativeDirection
 	Steps     uint
 }
@@ -166,7 +166,7 @@ func (action ActionMoveRelative) Execute(w world.World) (world.World, error) {
 // Should it be an action?  I mean, should it take one turn?  That's left to the
 // user to choose.
 type ActionTurn struct {
-	SubjectID world.ActorId
+	SubjectID world.ActorID
 	Direction world.RelativeDirection
 	Steps     uint
 }
@@ -201,7 +201,7 @@ func (action ActionTurn) Execute(w world.World) (world.World, error) {
 	return w, nil
 }
 
-func DecideAction(subjectID world.ActorId) Action {
+func DecideAction(subjectID world.ActorID) Action {
 	return ActionTurn{
 		SubjectID: subjectID,
 		Direction: world.LEFT(),

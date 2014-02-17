@@ -25,15 +25,15 @@ func (self CreatureActorError) Error() string {
 
 type CreatureActor struct {
 	// Upper case for debugging and for Gob, not so that you use it.
-	Ca map[CreatureId]ActorId
-	Ac map[ActorId]CreatureId
+	Ca map[CreatureId]ActorID
+	Ac map[ActorID]CreatureId
 }
 
 func MakeCreatureActor() CreatureActor {
 	const CAPACITY = 0
 	return CreatureActor{
-		Ca: make(map[CreatureId]ActorId, CAPACITY),
-		Ac: make(map[ActorId]CreatureId, CAPACITY),
+		Ca: make(map[CreatureId]ActorID, CAPACITY),
+		Ac: make(map[ActorID]CreatureId, CAPACITY),
 	}
 }
 
@@ -62,12 +62,12 @@ func (self CreatureActor) IsSane() error {
 	return nil
 }
 
-func (self CreatureActor) GetCreature(actor_id ActorId) (CreatureId, bool) {
+func (self CreatureActor) GetCreature(actor_id ActorID) (CreatureId, bool) {
 	creature, ok := self.Ac[actor_id]
 	return creature, ok
 }
 
-func (self CreatureActor) GetActor(creature_id CreatureId) (ActorId, bool) {
+func (self CreatureActor) GetActor(creature_id CreatureId) (ActorID, bool) {
 	actor_id, ok := self.Ca[creature_id]
 	return actor_id, ok
 }
@@ -75,8 +75,8 @@ func (self CreatureActor) GetActor(creature_id CreatureId) (ActorId, bool) {
 func (self CreatureActor) Copy() CreatureActor {
 	n_items := len(self.Ca)
 	result := CreatureActor{
-		Ca: make(map[CreatureId]ActorId, n_items),
-		Ac: make(map[ActorId]CreatureId, n_items),
+		Ca: make(map[CreatureId]ActorID, n_items),
+		Ac: make(map[ActorID]CreatureId, n_items),
 	}
 	for c, a := range self.Ca {
 		result.Ca[c] = a
@@ -85,7 +85,7 @@ func (self CreatureActor) Copy() CreatureActor {
 	return result
 }
 
-func (self CreatureActor) Add(creature_id CreatureId, actor_id ActorId) (CreatureActor, error) {
+func (self CreatureActor) Add(creature_id CreatureId, actor_id ActorID) (CreatureActor, error) {
 	// First make sure that the creature or actor aren't already taken.
 	_, ok := self.Ca[creature_id]
 	if ok {
@@ -112,7 +112,7 @@ func (self CreatureActor) RemoveCreature(creature_id CreatureId) (CreatureActor,
 	return result, true
 }
 
-func (self CreatureActor) RemoveActor(actor_id ActorId) (CreatureActor, bool) {
+func (self CreatureActor) RemoveActor(actor_id ActorID) (CreatureActor, bool) {
 	result := self.Copy()
 	creature_id, ok := result.Ac[actor_id]
 	if !ok {

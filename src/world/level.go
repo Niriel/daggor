@@ -46,7 +46,7 @@ func (level *Level) IsPassable(location Location, direction AbsoluteDirection) b
 	return wall_passable && floor_passable
 }
 
-func (self Level) ActorLocation(actor_id ActorId) (Location, bool) {
+func (self Level) ActorLocation(actor_id ActorID) (Location, bool) {
 	creature_id, ok := self.CreatureActor.GetCreature(actor_id)
 	if !ok {
 		return Location{}, false
@@ -55,7 +55,7 @@ func (self Level) ActorLocation(actor_id ActorId) (Location, bool) {
 	return location, ok
 }
 
-func (self Level) ActorPosition(actor_id ActorId) (Position, bool) {
+func (self Level) ActorPosition(actor_id ActorID) (Position, bool) {
 	creature_id, ok := self.CreatureActor.GetCreature(actor_id)
 	if !ok {
 		return Position{}, false
