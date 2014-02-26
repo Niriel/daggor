@@ -2,6 +2,7 @@
 package main
 
 import (
+	"batch"
 	"fmt"
 	"github.com/go-gl/gl"
 	glfw "github.com/go-gl/glfw3"
@@ -10,7 +11,6 @@ import (
 	"ia"
 	"runtime"
 	"time"
-	"unsafe"
 	"world"
 )
 
@@ -174,59 +174,13 @@ func viewMatrix(pos world.Position) glm.Matrix4 {
 	return R.Mult(T)
 }
 
-type globalMatrices struct {
-	Ubo gl.Buffer
-}
-
-func createGlobalMatrices() globalMatrices {
-	ubo := gl.GenBuffer()
-	ubo.Bind(gl.UNIFORM_BUFFER)
-	gl.BufferData(
-		gl.UNIFORM_BUFFER,
-		int(unsafe.Sizeof(gl.GLfloat(0))*16*2), // Two matrices of 16 floats.
-		nil,
-		gl.STREAM_DRAW,
-	)
-	ubo.Unbind(gl.UNIFORM_BUFFER)
-	return globalMatrices{ubo}
-}
-
-func (matrices globalMatrices) updateMatrix(matrix glm.Matrix4, offset uintptr) {
-	glmatrix := matrix.Gl()
-	matrices.Ubo.Bind(gl.UNIFORM_BUFFER)
-	gl.BufferSubData(
-		gl.UNIFORM_BUFFER,
-		int(offset),
-		int(unsafe.Sizeof(glmatrix)),
-		&glmatrix,
-	)
-	matrices.Ubo.Unbind(gl.UNIFORM_BUFFER)
-}
-
-func (matrices globalMatrices) UpdateProjection(projection glm.Matrix4) {
-	matrices.updateMatrix(projection, 0)
-}
-
-func (matrices globalMatrices) UpdateView(view glm.Matrix4) {
-	matrices.updateMatrix(view, unsafe.Sizeof(gl.GLfloat(0))*16)
-}
-
-func (matrices globalMatrices) BindingPoint(bindingPoint uint) {
-	matrices.Ubo.BindBufferRange(
-		gl.UNIFORM_BUFFER,
-		bindingPoint,
-		0,
-		uint(unsafe.Sizeof(gl.GLfloat(0))*16*2),
-	)
-}
-
 type glState struct {
 	Window           *glfw.Window
 	glfwKeyEventList *glfwKeyEventList
 	Programs         glw.Programs
 	Shapes           [7]glw.Drawable
 	DynaPyramid      glw.StreamDrawable
-	globalMatrices   globalMatrices
+	globalMatrices   batch.GlState
 }
 
 type programState struct {
@@ -511,15 +465,22 @@ func main() {
 	// circle.  Bonus point: this matches Blender's reference frame.
 	myFrame := glm.ZUP.Mult(glm.RotZ(90))
 	projectionMatrix := glm.PerspectiveProj(110, 640./480., .1, 100).Mult(myFrame)
-	programState.Gl.globalMatrices = createGlobalMatrices()
-	programState.Gl.globalMatrices.BindingPoint(UniformBinding)
-	programState.Gl.globalMatrices.UpdateProjection(projectionMatrix)
+	programState.Gl.globalMatrices = batch.MakeGlState()
+	programState.Gl.globalMatrices.SetCameraProj(projectionMatrix)
 
 	gl.Enable(gl.FRAMEBUFFER_SRGB)
 	gl.Enable(gl.DEPTH_TEST)
 	gl.Enable(gl.CULL_FACE)
 	gl.CullFace(gl.BACK)
 	gl.FrontFace(gl.CCW)
+
+	//blah := make([]int32, 1)
+	//for _, thing := range []gl.GLenum{gl.UNIFORM_BUFFER_OFFSET_ALIGNMENT,
+	//	gl.UNIFORM_BLOCK_DATA_SIZE,
+	//} {
+	//	gl.GetIntegerv(thing, blah)
+	//	fmt.Println(blah)
+	//}
 
 	programState.World = world.MakeWorld()
 	mainLoop(programState)
@@ -641,7 +602,7 @@ func render(programState programState) {
 	if !ok {
 		panic("Could not find player's character position.")
 	}
-	programState.Gl.globalMatrices.UpdateView(viewMatrix(position))
+	programState.Gl.globalMatrices.SetCameraView(viewMatrix(position))
 	renderBuildings(
 		programState.World.Level.Floors,
 		0, 0,
