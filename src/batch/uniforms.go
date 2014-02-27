@@ -1,7 +1,6 @@
-package main
+package batch
 
 import (
-	"batch"
 	"fmt"
 	"github.com/go-gl/gl"
 	"glw"
@@ -13,33 +12,39 @@ import (
 // that correspond to our very specific needs.
 
 type UniformBatch struct {
-	batch.BaseBatch
+	BaseBatch
+	context            *GlContext
 	modelMatrixUniform gl.UniformLocation
 	modelMatrix        [16]float32
 }
 
 func MakeUniformBatch(
+	context *GlContext,
 	modelMatrixUniform gl.UniformLocation,
 	modelMatrix [16]float32,
 ) UniformBatch {
-	return UniformBatch{modelMatrix: modelMatrix}
+	return UniformBatch{
+		context:            context,
+		modelMatrixUniform: modelMatrixUniform,
+		modelMatrix:        modelMatrix,
+	}
 }
 
-func (ubatch UniformBatch) Enter() {
-	ubatch.modelMatrixUniform.UniformMatrix4f(false, &ubatch.modelMatrix)
+func (batch UniformBatch) Enter() {
+	batch.modelMatrixUniform.UniformMatrix4f(false, &batch.modelMatrix)
 
-	batch.GlobalGlState.Program.Validate()
+	batch.context.Program.Validate()
 	if err := glw.CheckGlError(); err != nil {
 		err.Description = "Program.Validate failed."
 		panic(err)
 	}
-	status := batch.GlobalGlState.Program.Get(gl.VALIDATE_STATUS)
+	status := batch.context.Program.Get(gl.VALIDATE_STATUS)
 	if err := glw.CheckGlError(); err != nil {
 		err.Description = "Program.Get(VALIDATE_STATUS) failed."
 		panic(err)
 	}
 	if status == gl.FALSE {
-		infolog := batch.GlobalGlState.Program.GetInfoLog()
+		infolog := batch.context.Program.GetInfoLog()
 		gl.GetError() // Clear error flag if infolog derped.
 		panic(fmt.Errorf("Program validation failed. Log: %v", infolog))
 	}

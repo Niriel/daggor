@@ -1,4 +1,3 @@
-// glstate
 package batch
 
 import (
@@ -8,11 +7,9 @@ import (
 	"unsafe"
 )
 
-var GlobalGlState GlState
-
 const CameraUboBindingPoint = 0
 
-type GlState struct {
+type GlContext struct {
 	cameraProj glm.Matrix4
 	cameraView glm.Matrix4
 	cameraUbo  gl.Buffer
@@ -22,7 +19,7 @@ type GlState struct {
 	Program gl.Program
 }
 
-func MakeGlState() GlState {
+func MakeGlContext() GlContext {
 	cameraUbo := gl.GenBuffer()
 	if err := glw.CheckGlError(); err != nil {
 		err.Description = "cameraUbo := gl.GenBuffer()"
@@ -60,40 +57,40 @@ func MakeGlState() GlState {
 
 	programs := glw.MakePrograms()
 
-	return GlState{
+	return GlContext{
 		cameraUbo: cameraUbo,
 		Programs:  programs,
 	}
 }
 
-func (glState GlState) CameraProj() glm.Matrix4 {
-	return glState.cameraProj
+func (context GlContext) CameraProj() glm.Matrix4 {
+	return context.cameraProj
 }
 
-func (glState GlState) CameraView() glm.Matrix4 {
-	return glState.cameraView
+func (context GlContext) CameraView() glm.Matrix4 {
+	return context.cameraView
 }
 
-func (glState GlState) SetCameraProj(projMatrix glm.Matrix4) {
+func (context GlContext) SetCameraProj(projMatrix glm.Matrix4) {
 	const projMatrixStartOffset = 0
-	glState.cameraProj = projMatrix
-	glState.updateMatrix(projMatrix, projMatrixStartOffset)
+	context.cameraProj = projMatrix
+	context.updateMatrix(projMatrix, projMatrixStartOffset)
 }
 
-func (glState GlState) SetCameraView(viewMatrix glm.Matrix4) {
+func (context GlContext) SetCameraView(viewMatrix glm.Matrix4) {
 	const viewMatrixStartOffset = unsafe.Sizeof(gl.GLfloat(0)) * 16
-	glState.cameraProj = viewMatrix
-	glState.updateMatrix(viewMatrix, viewMatrixStartOffset)
+	context.cameraProj = viewMatrix
+	context.updateMatrix(viewMatrix, viewMatrixStartOffset)
 }
 
-func (glState GlState) updateMatrix(matrix glm.Matrix4, offset uintptr) {
+func (context GlContext) updateMatrix(matrix glm.Matrix4, offset uintptr) {
 	glmatrix := matrix.Gl()
-	glState.cameraUbo.Bind(gl.UNIFORM_BUFFER)
+	context.cameraUbo.Bind(gl.UNIFORM_BUFFER)
 	gl.BufferSubData(
 		gl.UNIFORM_BUFFER,
 		int(offset),
 		int(unsafe.Sizeof(glmatrix)),
 		&glmatrix,
 	)
-	glState.cameraUbo.Unbind(gl.UNIFORM_BUFFER)
+	context.cameraUbo.Unbind(gl.UNIFORM_BUFFER)
 }

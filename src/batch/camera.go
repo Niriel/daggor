@@ -6,17 +6,22 @@ import (
 
 type CameraBatch struct {
 	BaseBatch
-	view glm.Matrix4
-	proj glm.Matrix4
+	context *GlContext
+	view    glm.Matrix4
+	proj    glm.Matrix4
 }
 
-func MakeCameraBatch(view, proj glm.Matrix4) CameraBatch {
-	return CameraBatch{view: view, proj: proj}
+func MakeCameraBatch(context *GlContext, view, proj glm.Matrix4) CameraBatch {
+	return CameraBatch{
+		context: context,
+		view:    view,
+		proj:    proj,
+	}
 }
 
 func (batch CameraBatch) Enter() {
-	GlobalGlState.SetCameraView(batch.view)
-	GlobalGlState.SetCameraProj(batch.proj)
+	batch.context.SetCameraView(batch.view)
+	batch.context.SetCameraProj(batch.proj)
 }
 
 func (batch CameraBatch) Exit() {}

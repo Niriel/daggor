@@ -8,15 +8,16 @@ import (
 
 type ProgramBatch struct {
 	BaseBatch
+	context    *GlContext
 	shaderRefs glw.ShaderRefs
 }
 
-func MakeProgramBatch(shaderRefs glw.ShaderRefs) ProgramBatch {
-	return ProgramBatch{shaderRefs: shaderRefs}
+func MakeProgramBatch(context *GlContext, shaderRefs glw.ShaderRefs) ProgramBatch {
+	return ProgramBatch{context: context, shaderRefs: shaderRefs}
 }
 
 func (batch ProgramBatch) Enter() {
-	program, err := GlobalGlState.Programs.Serve(batch.shaderRefs)
+	program, err := batch.context.Programs.Serve(batch.shaderRefs)
 	if err != nil {
 		panic(err)
 	}
@@ -25,10 +26,10 @@ func (batch ProgramBatch) Enter() {
 	if err := glw.CheckGlError(); err != nil {
 		err.Description = fmt.Sprintf("program.Use() for ProgramBatch %v", program)
 	}
-	GlobalGlState.Program = program
+	batch.context.Program = program
 }
 
 func (batch ProgramBatch) Exit() {
 	gl.ProgramUnuse()
-	GlobalGlState.Program = 0
+	batch.context.Program = 0
 }

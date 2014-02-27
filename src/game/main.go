@@ -177,10 +177,9 @@ func viewMatrix(pos world.Position) glm.Matrix4 {
 type glState struct {
 	Window           *glfw.Window
 	glfwKeyEventList *glfwKeyEventList
-	Programs         glw.Programs
 	Shapes           [7]glw.Drawable
 	DynaPyramid      glw.StreamDrawable
-	globalMatrices   batch.GlState
+	context          batch.GlContext
 }
 
 type programState struct {
@@ -441,18 +440,19 @@ func main() {
 		panic("OpenGL version 3.3 required, your video card/driver does not seem to support it.")
 	}
 
-	programState.Gl.Programs = glw.MakePrograms()
+	programState.Gl.context = batch.MakeGlContext()
+	programState.Gl.context.Programs = glw.MakePrograms()
 
 	const UniformBinding = 0
 
-	programState.Gl.Shapes[cubeID] = glw.Cube(programState.Gl.Programs, UniformBinding)
-	programState.Gl.Shapes[pyramidID] = glw.Pyramid(programState.Gl.Programs, UniformBinding)
-	programState.Gl.Shapes[floorID] = glw.Floor(programState.Gl.Programs, UniformBinding)
-	programState.Gl.Shapes[wallID] = glw.Wall(programState.Gl.Programs, UniformBinding)
-	programState.Gl.Shapes[columnID] = glw.Column(programState.Gl.Programs, UniformBinding)
-	programState.Gl.Shapes[ceilingID] = glw.Ceiling(programState.Gl.Programs, UniformBinding)
-	programState.Gl.Shapes[monsterID] = glw.Monster(programState.Gl.Programs, UniformBinding)
-	programState.Gl.DynaPyramid = glw.DynaPyramid(programState.Gl.Programs)
+	programState.Gl.Shapes[cubeID] = glw.Cube(programState.Gl.context.Programs, UniformBinding)
+	programState.Gl.Shapes[pyramidID] = glw.Pyramid(programState.Gl.context.Programs, UniformBinding)
+	programState.Gl.Shapes[floorID] = glw.Floor(programState.Gl.context.Programs, UniformBinding)
+	programState.Gl.Shapes[wallID] = glw.Wall(programState.Gl.context.Programs, UniformBinding)
+	programState.Gl.Shapes[columnID] = glw.Column(programState.Gl.context.Programs, UniformBinding)
+	programState.Gl.Shapes[ceilingID] = glw.Ceiling(programState.Gl.context.Programs, UniformBinding)
+	programState.Gl.Shapes[monsterID] = glw.Monster(programState.Gl.context.Programs, UniformBinding)
+	programState.Gl.DynaPyramid = glw.DynaPyramid(programState.Gl.context.Programs)
 
 	// I do not like the default reference frame of OpenGl.
 	// By default, we look in the direction -z, and y points up.
@@ -465,8 +465,7 @@ func main() {
 	// circle.  Bonus point: this matches Blender's reference frame.
 	myFrame := glm.ZUP.Mult(glm.RotZ(90))
 	projectionMatrix := glm.PerspectiveProj(110, 640./480., .1, 100).Mult(myFrame)
-	programState.Gl.globalMatrices = batch.MakeGlState()
-	programState.Gl.globalMatrices.SetCameraProj(projectionMatrix)
+	programState.Gl.context.SetCameraProj(projectionMatrix)
 
 	gl.Enable(gl.FRAMEBUFFER_SRGB)
 	gl.Enable(gl.DEPTH_TEST)
@@ -602,7 +601,16 @@ func render(programState programState) {
 	if !ok {
 		panic("Could not find player's character position.")
 	}
-	programState.Gl.globalMatrices.SetCameraView(viewMatrix(position))
+
+	programState.Gl.context.SetCameraView(viewMatrix(position))
+	//rootBatch := batch.MakeCameraBatch(
+	//	programState.Gl.globalMatrices.CameraProj(),
+	//	viewMatrix(position),
+	//)
+	//rootBatch.Enter()
+	//rootBatch.Run()
+	//rootBatch.Exit()
+
 	renderBuildings(
 		programState.World.Level.Floors,
 		0, 0,
@@ -675,7 +683,7 @@ func renderBuildings(
 			m = m.Mult(*defaultR)
 		}
 		mgl := m.Gl()
-		glState.Shapes[building.Model()].Draw(glState.Programs, &mgl)
+		glState.Shapes[building.Model()].Draw(glState.context.Programs, &mgl)
 	}
 }
 
@@ -693,7 +701,7 @@ func renderCreatures(
 				0,
 			}.Translation().Mult(glm.RotZ(float64(90 * creature.F.Value())))
 			mgl := m.Gl()
-			glState.Shapes[monsterID].Draw(glState.Programs, &mgl)
+			glState.Shapes[monsterID].Draw(glState.context.Programs, &mgl)
 		}
 	}
 }
