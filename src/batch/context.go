@@ -63,27 +63,27 @@ func MakeGlContext() GlContext {
 	}
 }
 
-func (context GlContext) CameraProj() glm.Matrix4 {
+func (context *GlContext) CameraProj() glm.Matrix4 {
 	return context.cameraProj
 }
 
-func (context GlContext) CameraView() glm.Matrix4 {
+func (context *GlContext) CameraView() glm.Matrix4 {
 	return context.cameraView
 }
 
-func (context GlContext) SetCameraProj(projMatrix glm.Matrix4) {
+func (context *GlContext) SetCameraProj(projMatrix glm.Matrix4) {
 	const projMatrixStartOffset = 0
 	context.cameraProj = projMatrix
 	context.updateMatrix(projMatrix, projMatrixStartOffset)
 }
 
-func (context GlContext) SetCameraView(viewMatrix glm.Matrix4) {
+func (context *GlContext) SetCameraView(viewMatrix glm.Matrix4) {
 	const viewMatrixStartOffset = unsafe.Sizeof(gl.GLfloat(0)) * 16
-	context.cameraProj = viewMatrix
+	context.cameraView = viewMatrix
 	context.updateMatrix(viewMatrix, viewMatrixStartOffset)
 }
 
-func (context GlContext) updateMatrix(matrix glm.Matrix4, offset uintptr) {
+func (context *GlContext) updateMatrix(matrix glm.Matrix4, offset uintptr) {
 	glmatrix := matrix.Gl()
 	context.cameraUbo.Bind(gl.UNIFORM_BUFFER)
 	gl.BufferSubData(

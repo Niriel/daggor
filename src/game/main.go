@@ -602,14 +602,15 @@ func render(programState programState) {
 		panic("Could not find player's character position.")
 	}
 
-	programState.Gl.context.SetCameraView(viewMatrix(position))
-	//rootBatch := batch.MakeCameraBatch(
-	//	programState.Gl.globalMatrices.CameraProj(),
-	//	viewMatrix(position),
-	//)
-	//rootBatch.Enter()
-	//rootBatch.Run()
-	//rootBatch.Exit()
+	//programState.Gl.context.SetCameraView(viewMatrix(position))
+	rootBatch := batch.MakeCameraBatch(
+		&programState.Gl.context,
+		viewMatrix(position),
+		programState.Gl.context.CameraProj(),
+	)
+	rootBatch.Enter()
+	rootBatch.Run()
+	rootBatch.Exit()
 
 	renderBuildings(
 		programState.World.Level.Floors,
