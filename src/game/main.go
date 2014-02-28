@@ -594,23 +594,29 @@ func runAI(w world.World, playerAction ia.Action) world.World {
 }
 
 func render(programState programState) {
-	gl.ClearColor(0.0, 0.0, 0.4, 0.0)
-	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+	clearBatch := batch.MakeClearBatch(
+		gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT,
+		[4]gl.GLclampf{0.0, 0.0, 0.4, 0.0},
+		1,
+	)
+
 	actorID := programState.World.Player_id
 	position, ok := programState.World.Level.ActorPosition(actorID)
 	if !ok {
 		panic("Could not find player's character position.")
 	}
 
-	//programState.Gl.context.SetCameraView(viewMatrix(position))
-	rootBatch := batch.MakeCameraBatch(
+	camBatch := batch.MakeCameraBatch(
 		&programState.Gl.context,
 		viewMatrix(position),
 		programState.Gl.context.CameraProj(),
 	)
-	rootBatch.Enter()
-	rootBatch.Run()
-	rootBatch.Exit()
+
+	clearBatch.Batches = append(clearBatch.Batches, camBatch)
+
+	clearBatch.Enter()
+	clearBatch.Run()
+	clearBatch.Exit()
 
 	renderBuildings(
 		programState.World.Level.Floors,
