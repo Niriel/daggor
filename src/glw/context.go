@@ -1,9 +1,8 @@
-package batch
+package glw
 
 import (
 	"github.com/go-gl/gl"
 	"glm"
-	"glw"
 	"unsafe"
 )
 
@@ -13,21 +12,21 @@ type GlContext struct {
 	cameraProj glm.Matrix4
 	cameraView glm.Matrix4
 	cameraUbo  gl.Buffer
-	Programs   glw.Programs
+	Programs   *Programs
 	// The Program in use.  Set by ProgramBatch.  Usable by uniform batches
 	// when they need to validate their inputs before a draw call.
 	Program gl.Program
 }
 
-func MakeGlContext() GlContext {
+func NewGlContext() *GlContext {
 	cameraUbo := gl.GenBuffer()
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = "cameraUbo := gl.GenBuffer()"
 		panic(err)
 	}
 
 	cameraUbo.Bind(gl.UNIFORM_BUFFER)
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = "cameraUbo.Bind(gl.UNIFORM_BUFFER)"
 		panic(err)
 	}
@@ -38,26 +37,26 @@ func MakeGlContext() GlContext {
 		nil,
 		gl.STREAM_DRAW,
 	)
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = "gl.BufferData(...) for camera UBO"
 		panic(err)
 	}
 
 	cameraUbo.BindBufferBase(gl.UNIFORM_BUFFER, CameraUboBindingPoint)
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = "cameraUbo.BindBufferBase"
 		panic(err)
 	}
 
 	cameraUbo.Unbind(gl.UNIFORM_BUFFER)
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = "cameraUbo.Unbind(gl.UNIFORM_BUFFER)"
 		panic(err)
 	}
 
-	programs := glw.MakePrograms()
+	programs := NewPrograms()
 
-	return GlContext{
+	return &GlContext{
 		cameraUbo: cameraUbo,
 		Programs:  programs,
 	}

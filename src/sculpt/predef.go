@@ -10,7 +10,7 @@ import (
 // Floor creates the mesh for a floor.
 // It makes no call to OpenGL whatsoever.
 // This can even be called before the context is created.
-func Floor(programs *glw.Programs, ubb uint) Mesh {
+func Floor(programs *glw.Programs) Mesh {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
 
@@ -31,7 +31,7 @@ func Floor(programs *glw.Programs, ubb uint) Mesh {
 	elements := new(ElementsUbyte)
 	elements.SetElementData(elementData)
 
-	uniforms := MakeUniformsLoc(ubb)
+	uniforms := UniformsLoc{}
 
 	drawer := DrawElement{
 		mode:    gl.TRIANGLE_STRIP,

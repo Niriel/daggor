@@ -6,16 +6,17 @@ import (
 	"sort"
 )
 
-type ProgramRef string
+type programRef string
 
 // MakeProgramRef creates a unique ID for a program from the unique IDs of its
-// shaders.
-func MakeProgramRef(shaders ShaderRefs) ProgramRef {
+// shaders.  This is not exposed to the user.  Users are expected to identify
+// programs by using ShaderRefs.
+func makeProgramRef(shaders ShaderRefs) programRef {
 	nb := len(shaders)
 	sorted := make(ShaderRefs, nb, nb)
 	copy(sorted, shaders)
 	sort.Sort(sorted)
-	return ProgramRef(fmt.Sprintf("%v", sorted))
+	return programRef(fmt.Sprintf("%v", sorted))
 }
 
 type Programs struct {
@@ -27,18 +28,18 @@ type Programs struct {
 	// So what I mean is: pass your instance of Programs by
 	// value, not by address, unless you think that you need to.
 	shaders  Shaders
-	programs map[ProgramRef]gl.Program
+	programs map[programRef]gl.Program
 }
 
-func MakePrograms() Programs {
+func NewPrograms() *Programs {
 	var programs Programs
 	programs.shaders = MakeShaders()
-	programs.programs = make(map[ProgramRef]gl.Program)
-	return programs
+	programs.programs = make(map[programRef]gl.Program)
+	return &programs
 }
 
-func (self Programs) Serve(srefs ShaderRefs) (gl.Program, error) {
-	pref := MakeProgramRef(srefs)
+func (self *Programs) Serve(srefs ShaderRefs) (gl.Program, error) {
+	pref := makeProgramRef(srefs)
 	program, ok := self.programs[pref]
 	if ok {
 		return program, nil

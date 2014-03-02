@@ -13,13 +13,13 @@ import (
 
 type UniformBatch struct {
 	BaseBatch
-	context            *GlContext
+	context            *glw.GlContext
 	modelMatrixUniform gl.UniformLocation
 	modelMatrix        [16]float32
 }
 
 func MakeUniformBatch(
-	context *GlContext,
+	context *glw.GlContext,
 	modelMatrixUniform gl.UniformLocation,
 	modelMatrix [16]float32,
 ) UniformBatch {

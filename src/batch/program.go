@@ -8,11 +8,11 @@ import (
 
 type ProgramBatch struct {
 	BaseBatch
-	context    *GlContext
+	context    *glw.GlContext
 	shaderRefs glw.ShaderRefs
 }
 
-func MakeProgramBatch(context *GlContext, shaderRefs glw.ShaderRefs) ProgramBatch {
+func MakeProgramBatch(context *glw.GlContext, shaderRefs glw.ShaderRefs) ProgramBatch {
 	return ProgramBatch{context: context, shaderRefs: shaderRefs}
 }
 

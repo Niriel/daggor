@@ -20,17 +20,11 @@ type Modeler interface {
 // For now we have one type of uniform setup only.  In the future we will need
 // more and we'll probably need an interface.
 type UniformsLoc struct {
-	// Filled at the creation of the object.
-	globalMatricesUbb uint // Uniform Block Binding.
 	// Filled when calling the SetUpVao method with a program.
 	globalMatricesUbi gl.UniformBlockIndex
 	modelLoc          gl.UniformLocation
 	// Filled when updating the uniform values.
 	model glm.Matrix4
-}
-
-func MakeUniformsLoc(globalMatricesUbb uint) UniformsLoc {
-	return UniformsLoc{globalMatricesUbb: globalMatricesUbb}
 }
 
 func (unif *UniformsLoc) SetUpVao(program gl.Program) {
@@ -60,7 +54,7 @@ func (unif *UniformsLoc) SetUpVao(program gl.Program) {
 
 	program.UniformBlockBinding(
 		unif.globalMatricesUbi,
-		unif.globalMatricesUbb)
+		glw.CameraUboBindingPoint)
 	if err := glw.CheckGlError(); err != nil {
 		err.Description = "UniformBlockBinding"
 		panic(err)

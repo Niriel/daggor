@@ -179,7 +179,7 @@ type glState struct {
 	Window           *glfw.Window
 	glfwKeyEventList *glfwKeyEventList
 	Shapes           [7]sculpt.Mesh
-	context          batch.GlContext
+	context          *glw.GlContext
 }
 
 type programState struct {
@@ -440,10 +440,7 @@ func main() {
 		panic("OpenGL version 3.3 required, your video card/driver does not seem to support it.")
 	}
 
-	programState.Gl.context = batch.MakeGlContext()
-	programState.Gl.context.Programs = glw.MakePrograms()
-
-	const UniformBinding = 0
+	programState.Gl.context = glw.NewGlContext()
 
 	//programState.Gl.Shapes[cubeID] = glw.Cube(programState.Gl.context.Programs, UniformBinding)
 	//programState.Gl.Shapes[pyramidID] = glw.Pyramid(programState.Gl.context.Programs, UniformBinding)
@@ -453,7 +450,7 @@ func main() {
 	//programState.Gl.Shapes[ceilingID] = glw.Ceiling(programState.Gl.context.Programs, UniformBinding)
 	//programState.Gl.Shapes[monsterID] = glw.Monster(programState.Gl.context.Programs, UniformBinding)
 	//programState.Gl.DynaPyramid = glw.DynaPyramid(programState.Gl.context.Programs)
-	programState.Gl.Shapes[floorID] = sculpt.Floor(&programState.Gl.context.Programs, UniformBinding)
+	programState.Gl.Shapes[floorID] = sculpt.Floor(programState.Gl.context.Programs)
 	programState.Gl.Shapes[floorID].SetUpVao()
 
 	// I do not like the default reference frame of OpenGl.
@@ -609,7 +606,7 @@ func render(programState programState) {
 	}
 
 	camBatch := batch.MakeCameraBatch(
-		&programState.Gl.context,
+		programState.Gl.context,
 		viewMatrix(position),
 		programState.Gl.context.CameraProj(),
 	)

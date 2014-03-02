@@ -2,16 +2,17 @@ package batch
 
 import (
 	"glm"
+	"glw"
 )
 
 type CameraBatch struct {
 	BaseBatch
-	context *GlContext
+	context *glw.GlContext
 	view    glm.Matrix4
 	proj    glm.Matrix4
 }
 
-func MakeCameraBatch(context *GlContext, view, proj glm.Matrix4) CameraBatch {
+func MakeCameraBatch(context *glw.GlContext, view, proj glm.Matrix4) CameraBatch {
 	return CameraBatch{
 		context: context,
 		view:    view,
