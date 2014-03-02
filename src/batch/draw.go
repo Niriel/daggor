@@ -1,37 +1,19 @@
 package batch
 
 import (
-	"fmt"
-	"github.com/go-gl/gl"
-	"glw"
+	"sculpt"
 )
 
-type DrawElementsBufferedBatch struct {
-	primitive gl.GLenum
-	elements  glw.ElementIndexFormat
+type DrawBatch struct {
+	drawer sculpt.Drawer
 }
 
-func MakeDrawElementsBufferedBatch(
-	primitive gl.GLenum,
-	elements glw.ElementIndexFormat,
-) DrawElementsBufferedBatch {
-	return DrawElementsBufferedBatch{
-		primitive: primitive,
-		elements:  elements,
-	}
+func MakeDrawBatch(drawer sculpt.Drawer) DrawBatch {
+	return DrawBatch{drawer: drawer}
 }
 
-func (batch DrawElementsBufferedBatch) Enter() {}
-func (batch DrawElementsBufferedBatch) Exit()  {}
-func (batch DrawElementsBufferedBatch) Run() {
-	gl.DrawElements(
-		batch.primitive,
-		batch.elements.Len(),
-		batch.elements.GlType(),
-		nil, // Indices are in a buffer, never give them directly.
-	)
-	if err := glw.CheckGlError(); err != nil {
-		err.Description = fmt.Sprintf("DrawElementsBuffered %v", batch)
-		panic(err)
-	}
+func (batch DrawBatch) Enter() {}
+func (batch DrawBatch) Exit()  {}
+func (batch DrawBatch) Run() {
+	batch.drawer.Draw()
 }

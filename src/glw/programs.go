@@ -8,6 +8,8 @@ import (
 
 type ProgramRef string
 
+// MakeProgramRef creates a unique ID for a program from the unique IDs of its
+// shaders.
 func MakeProgramRef(shaders ShaderRefs) ProgramRef {
 	nb := len(shaders)
 	sorted := make(ShaderRefs, nb, nb)

@@ -10,6 +10,7 @@ import (
 	"glw"
 	"ia"
 	"runtime"
+	"sculpt"
 	"time"
 	"world"
 )
@@ -177,8 +178,7 @@ func viewMatrix(pos world.Position) glm.Matrix4 {
 type glState struct {
 	Window           *glfw.Window
 	glfwKeyEventList *glfwKeyEventList
-	Shapes           [7]glw.Drawable
-	DynaPyramid      glw.StreamDrawable
+	Shapes           [7]sculpt.Mesh
 	context          batch.GlContext
 }
 
@@ -431,7 +431,7 @@ func main() {
 	// What are the advantages are asking for a core profile?
 	if err := glw.CheckGlError(); err != nil {
 		err.Description = "OpenGL has this error right after init for some reason."
-		fmt.Println(err)
+		//fmt.Println(err)
 	}
 	major := programState.Gl.Window.GetAttribute(glfw.ContextVersionMajor)
 	minor := programState.Gl.Window.GetAttribute(glfw.ContextVersionMinor)
@@ -445,14 +445,16 @@ func main() {
 
 	const UniformBinding = 0
 
-	programState.Gl.Shapes[cubeID] = glw.Cube(programState.Gl.context.Programs, UniformBinding)
-	programState.Gl.Shapes[pyramidID] = glw.Pyramid(programState.Gl.context.Programs, UniformBinding)
-	programState.Gl.Shapes[floorID] = glw.Floor(programState.Gl.context.Programs, UniformBinding)
-	programState.Gl.Shapes[wallID] = glw.Wall(programState.Gl.context.Programs, UniformBinding)
-	programState.Gl.Shapes[columnID] = glw.Column(programState.Gl.context.Programs, UniformBinding)
-	programState.Gl.Shapes[ceilingID] = glw.Ceiling(programState.Gl.context.Programs, UniformBinding)
-	programState.Gl.Shapes[monsterID] = glw.Monster(programState.Gl.context.Programs, UniformBinding)
-	programState.Gl.DynaPyramid = glw.DynaPyramid(programState.Gl.context.Programs)
+	//programState.Gl.Shapes[cubeID] = glw.Cube(programState.Gl.context.Programs, UniformBinding)
+	//programState.Gl.Shapes[pyramidID] = glw.Pyramid(programState.Gl.context.Programs, UniformBinding)
+	//programState.Gl.Shapes[floorID] = glw.Floor(programState.Gl.context.Programs, UniformBinding)
+	//programState.Gl.Shapes[wallID] = glw.Wall(programState.Gl.context.Programs, UniformBinding)
+	//programState.Gl.Shapes[columnID] = glw.Column(programState.Gl.context.Programs, UniformBinding)
+	//programState.Gl.Shapes[ceilingID] = glw.Ceiling(programState.Gl.context.Programs, UniformBinding)
+	//programState.Gl.Shapes[monsterID] = glw.Monster(programState.Gl.context.Programs, UniformBinding)
+	//programState.Gl.DynaPyramid = glw.DynaPyramid(programState.Gl.context.Programs)
+	programState.Gl.Shapes[floorID] = sculpt.Floor(&programState.Gl.context.Programs, UniformBinding)
+	programState.Gl.Shapes[floorID].SetUpVao()
 
 	// I do not like the default reference frame of OpenGl.
 	// By default, we look in the direction -z, and y points up.
@@ -617,46 +619,45 @@ func render(programState programState) {
 	clearBatch.Enter()
 	clearBatch.Run()
 	clearBatch.Exit()
-
 	renderBuildings(
 		programState.World.Level.Floors,
 		0, 0,
 		nil,
 		programState.Gl,
 	)
-	renderBuildings(
-		programState.World.Level.Ceilings,
-		0, 0,
-		nil,
-		programState.Gl,
-	)
-	renderBuildings(
-		programState.World.Level.Columns,
-		-.5, -.5,
-		nil,
-		programState.Gl,
-	)
-	for facing := 0; facing < 4; facing++ {
-		defaultR := glm.RotZ(float64(90 * facing))
-		renderBuildings(
-			programState.World.Level.Walls[facing],
-			0, 0,
-			&defaultR,
-			programState.Gl,
-		)
-	}
+	//renderBuildings(
+	//	programState.World.Level.Ceilings,
+	//	0, 0,
+	//	nil,
+	//	programState.Gl,
+	//)
+	//renderBuildings(
+	//	programState.World.Level.Columns,
+	//	-.5, -.5,
+	//	nil,
+	//	programState.Gl,
+	//)
+	//for facing := 0; facing < 4; facing++ {
+	//	defaultR := glm.RotZ(float64(90 * facing))
+	//	renderBuildings(
+	//		programState.World.Level.Walls[facing],
+	//		0, 0,
+	//		&defaultR,
+	//		programState.Gl,
+	//	)
+	//}
 
-	creatureID, ok := programState.World.Level.CreatureActor.GetCreature(actorID)
-	creatureLocations := programState.World.Level.CreatureLocation
-	if ok {
-		// Do not render the player creature.
-		creatureLocations, _ = creatureLocations.RemoveCreature(creatureID)
-	}
-	renderCreatures(
-		creatureLocations,
-		programState.World.Level.Creatures,
-		programState.Gl,
-	)
+	//creatureID, ok := programState.World.Level.CreatureActor.GetCreature(actorID)
+	//creatureLocations := programState.World.Level.CreatureLocation
+	//if ok {
+	//	// Do not render the player creature.
+	//	creatureLocations, _ = creatureLocations.RemoveCreature(creatureID)
+	//}
+	//renderCreatures(
+	//	creatureLocations,
+	//	programState.World.Level.Creatures,
+	//	programState.Gl,
+	//)
 
 	//// Stupid render of the one dynamic object.
 	//dyn := programState.World.Level.Dynamic
@@ -689,26 +690,30 @@ func renderBuildings(
 			// It is given as a precalculated rotation matrix `defaultR`.
 			m = m.Mult(*defaultR)
 		}
-		mgl := m.Gl()
-		glState.Shapes[building.Model()].Draw(glState.context.Programs, &mgl)
+		mesh := glState.Shapes[building.Model()]
+		modeler, ok := mesh.Uniforms.(sculpt.Modeler)
+		if ok {
+			modeler.SetModel(m)
+		}
+		mesh.Draw()
 	}
 }
 
-func renderCreatures(
-	creatureLocations world.CreatureLocation,
-	creatures world.Creatures,
-	glState glState,
-) {
-	for creatureID, creatureLocation := range creatureLocations.Cl {
-		creature, ok := creatures.Get(creatureID)
-		if ok {
-			m := glm.Vector3{
-				float64(creatureLocation.X),
-				float64(creatureLocation.Y),
-				0,
-			}.Translation().Mult(glm.RotZ(float64(90 * creature.F.Value())))
-			mgl := m.Gl()
-			glState.Shapes[monsterID].Draw(glState.context.Programs, &mgl)
-		}
-	}
-}
+//func renderCreatures(
+//	creatureLocations world.CreatureLocation,
+//	creatures world.Creatures,
+//	glState glState,
+//) {
+//	for creatureID, creatureLocation := range creatureLocations.Cl {
+//		creature, ok := creatures.Get(creatureID)
+//		if ok {
+//			//m := glm.Vector3{
+//			//	float64(creatureLocation.X),
+//			//	float64(creatureLocation.Y),
+//			//	0,
+//			//}.Translation().Mult(glm.RotZ(float64(90 * creature.F.Value())))
+//			//mgl := m.Gl()
+//			//glState.Shapes[monsterID].Draw(glState.context.Programs, &mgl)
+//		}
+//	}
+//}
