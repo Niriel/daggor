@@ -88,14 +88,16 @@ func (mesh *Mesh) Draw() {
 	// Assume the program is used.
 	// Assume the textures are bound.
 	// We also assume that each mesh has its own ebo.
+
+	// This needs to go away soon.
 	program, err := mesh.programs.Serve(mesh.srefs)
 	if err != nil {
 		panic(err)
 	}
+
 	program.Use()
 	mesh.updateBuffers()
 	mesh.bind()
-	mesh.Vertices.bind()
 	mesh.Uniforms.SetGl()
 	program.Validate()
 	if err := glw.CheckGlError(); err != nil {
@@ -113,7 +115,6 @@ func (mesh *Mesh) Draw() {
 		panic(fmt.Errorf("program validation failed with log: %v", infolog))
 	}
 	mesh.drawer.Draw()
-	mesh.Vertices.unbind()
 	mesh.unbind()
 	gl.ProgramUnuse()
 }
