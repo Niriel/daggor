@@ -30,7 +30,7 @@ type UniformsLoc struct {
 }
 
 func (unif *UniformsLoc) SetUpVao(program gl.Program) {
-	const modelLocName = "model_matrix"
+	const modelLocName = "view_matrix"
 	const matricesUbiName = "GlobalMatrices"
 
 	// The Model transformation matrix.

@@ -21,7 +21,6 @@ func MakeCameraBatch(context *glw.GlContext, view, proj glm.Matrix4) CameraBatch
 }
 
 func (batch CameraBatch) Enter() {
-	batch.context.SetCameraView(batch.view)
 	batch.context.SetCameraProj(batch.proj)
 }
 

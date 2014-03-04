@@ -605,9 +605,11 @@ func render(programState programState) {
 		panic("Could not find player's character position.")
 	}
 
+	view := viewMatrix(position)
+
 	camBatch := batch.MakeCameraBatch(
 		programState.Gl.context,
-		viewMatrix(position),
+		view,
 		programState.Gl.context.CameraProj(),
 	)
 
@@ -620,6 +622,7 @@ func render(programState programState) {
 		programState.World.Level.Floors,
 		0, 0,
 		nil,
+		view,
 		programState.Gl,
 	)
 }
@@ -628,6 +631,7 @@ func renderBuildings(
 	buildings world.Buildings,
 	offsetX, offsetY float64,
 	defaultR *glm.Matrix4, // Can be nil.
+	view glm.Matrix4,
 	glState glState,
 ) {
 	locations := make(map[world.ModelId][]glm.Matrix4)
@@ -647,6 +651,7 @@ func renderBuildings(
 			// It is given as a precalculated rotation matrix `defaultR`.
 			m = m.Mult(*defaultR)
 		}
+		m = view.Mult(m) // Shaders work in view space.
 		modelID := building.Model()
 		meshlocs := locations[modelID]
 		meshlocs = append(meshlocs, m)

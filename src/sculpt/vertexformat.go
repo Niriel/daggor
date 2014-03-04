@@ -160,7 +160,7 @@ func (buffer *VerticesXyzRgb) names() []string {
 	return []string{"vpos", "vcol"}
 }
 func (buffer *ModelMatInstances) names() []string {
-	return []string{"model_matrix"}
+	return []string{"view_matrix"}
 }
 
 func (buffer *VerticesXyz) attribPointers(atts []gl.AttribLocation) {

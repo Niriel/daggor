@@ -10,7 +10,6 @@ const CameraUboBindingPoint = 0
 
 type GlContext struct {
 	cameraProj glm.Matrix4
-	cameraView glm.Matrix4
 	cameraUbo  gl.Buffer
 	Programs   *Programs
 	// The Program in use.  Set by ProgramBatch.  Usable by uniform batches
@@ -33,7 +32,7 @@ func NewGlContext() *GlContext {
 
 	gl.BufferData(
 		gl.UNIFORM_BUFFER,
-		int(unsafe.Sizeof(gl.GLfloat(0))*16*2), // Two matrices of 16 floats.
+		int(unsafe.Sizeof(gl.GLfloat(0))*16), // Two matrices of 16 floats.
 		nil,
 		gl.STREAM_DRAW,
 	)
@@ -66,20 +65,10 @@ func (context *GlContext) CameraProj() glm.Matrix4 {
 	return context.cameraProj
 }
 
-func (context *GlContext) CameraView() glm.Matrix4 {
-	return context.cameraView
-}
-
 func (context *GlContext) SetCameraProj(projMatrix glm.Matrix4) {
 	const projMatrixStartOffset = 0
 	context.cameraProj = projMatrix
 	context.updateMatrix(projMatrix, projMatrixStartOffset)
-}
-
-func (context *GlContext) SetCameraView(viewMatrix glm.Matrix4) {
-	const viewMatrixStartOffset = unsafe.Sizeof(gl.GLfloat(0)) * 16
-	context.cameraView = viewMatrix
-	context.updateMatrix(viewMatrix, viewMatrixStartOffset)
 }
 
 func (context *GlContext) updateMatrix(matrix glm.Matrix4, offset uintptr) {
