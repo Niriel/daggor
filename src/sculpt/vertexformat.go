@@ -1,8 +1,6 @@
 package sculpt
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"github.com/go-gl/gl"
 	"glw"
@@ -12,171 +10,96 @@ import (
 //=============================================================================
 
 // This section defines the various vertex formats used in the game.
-// It is at the level of a single vertex, not a collection of vertices.
+// It is at the level of a single vertex, not a collection of buffer.
 
-// VertexXyz defines vertices that have a location and nothing else.
+// VertexXyz defines buffer that have a location and nothing else.
 // No color, UV or any other parameter.
 type VertexXyz struct {
 	X, Y, Z gl.GLfloat
 }
 
-// VertexXyzRgb defines vertices that have a location and a color.
+// VertexXyzRgb defines buffer that have a location and a color.
 // No UV information.  Note that there is no Alpha component to the color.
 type VertexXyzRgb struct {
 	X, Y, Z gl.GLfloat
 	R, G, B gl.GLfloat
 }
 
+// ModelMatInstance defines transformation matrices for instanced rendering.
+// This is a per-instance attribute, but it is read by the shader as a
+// per-vertex attribute.  It requires a VBO.
+type ModelMatInstance struct {
+	M [16]gl.GLfloat
+}
+
 //=============================================================================
 
-// This section defines collections of vertices.
-
-// baseVertices is common to every collection of vertices.
-// This base class is responsible for converting Go-friendly slices of
-// vertices into an OpenGL buffer.
-type baseVertices struct {
-	// vbo is the Vertex Buffer Object in which we send the vertices.
-	vbo gl.Buffer
-	// bufferdata is the binary data to send to the OpenGL buffer.
-	bufferdata []byte
-	// bufferdataClean signals whether bufferdata must be reconstructed from
-	// the Go-friendly vertex data or if it's still good.
-	bufferdataClean bool
-	// OpenGL hint about how often the buffer is expected to be updated.
-	usage gl.GLenum
-}
-
-func (vertices baseVertices) bind() {
-	vertices.vbo.Bind(gl.ARRAY_BUFFER)
-	if err := glw.CheckGlError(); err != nil {
-		err.Description = "vbo.Bind(gl.ARRAY_BUFFER)"
-		panic(err)
-	}
-}
-
-func (vertices baseVertices) unbind() {
-	vertices.vbo.Unbind(gl.ARRAY_BUFFER)
-	if err := glw.CheckGlError(); err != nil {
-		err.Description = "vbo.Unbind(gl.ARRAY_BUFFER)"
-		panic(err)
-	}
-}
-
-func (vertices baseVertices) BufferName() gl.Buffer {
-	return vertices.vbo
-}
-
-// updateBuffer creates and fill the OpenGL buffer IF NEEDED.
-// It creates the buffer if none is created yet, and it updates it if the
-// bufferdataClean flag is false.  It is safe to call this method every frame,
-// via the concrete classes method UpdateBuffer: most of the time it will just
-// return immediately.
-func (vertices *baseVertices) updateBuffer(vertexdata interface{}) {
-	if vertices.bufferdataClean {
-		return
-	}
-	const target = gl.ARRAY_BUFFER
-
-	// Convert the Go-friendly data into OpenGL-friendly data.
-	bufferdata := new(bytes.Buffer)
-	err := binary.Write(bufferdata, endianness, vertexdata)
-	if err != nil {
-		panic(err)
-	}
-	vertices.bufferdata = bufferdata.Bytes()
-	vertices.bufferdataClean = true
-
-	// Has a VBO been created yet?
-	isVboNew := vertices.vbo == 0
-
-	if isVboNew {
-		vertices.vbo = gl.GenBuffer()
-		if vertices.vbo == 0 {
-			panic("gl.GenBuffer returned 0")
-		}
-	}
-
-	vertices.bind()
-
-	if isVboNew {
-		gl.BufferData(
-			target,
-			len(vertices.bufferdata),
-			&vertices.bufferdata[0],
-			vertices.usage,
-		)
-		if err := glw.CheckGlError(); err != nil {
-			err.Description = "gl.BufferData"
-			panic(err)
-		}
-	} else {
-		gl.BufferSubData(
-			target,
-			0,
-			len(vertices.bufferdata),
-			&vertices.bufferdata[0],
-		)
-		if err := glw.CheckGlError(); err != nil {
-			err.Description = "gl.BufferSubData"
-			panic(err)
-		}
-	}
-
-	vertices.unbind()
-}
-
-// Delete the OpenGL vertex buffer object.
-func (vertices *baseVertices) DeleteBuffer() {
-	vertices.vbo.Delete()
-	vertices.vbo = 0
-}
-
-// Concrete classes of Vertices satisfy this public interface.
-type Vertices interface {
-	bind()
-	unbind()
-	SetUpVao(gl.Program)
-	BufferName() gl.Buffer
-	// UpdateBuffer can be called every frame.  It does nothing if it has
-	// nothing to do.  If needed, it creates a VBO on the fly, and/or fills
-	// it with the OpenGL-friendly version of the Go-friendly vertexdata
-	// passed with SetVertexData.
-	UpdateBuffer()
-	// Delete the OpenGL vertex buffer object.
-	DeleteBuffer()
-}
-
-// Concrete classes of Vertices derive from baseVertices and correspond to
+// Concrete classes of Vertices derive from baseBuffer and correspond to
 // a specific vertex format.
 
 type VerticesXyz struct {
-	baseVertices
-	vertexdata []VertexXyz
+	baseBuffer
+	data []VertexXyz
 }
 
 type VerticesXyzRgb struct {
-	baseVertices
-	vertexdata []VertexXyzRgb
+	baseBuffer
+	data []VertexXyzRgb
 }
 
-func (vertices *VerticesXyz) SetVertexData(vd []VertexXyz) {
-	vertices.vertexdata = make([]VertexXyz, len(vd), len(vd))
-	copy(vertices.vertexdata, vd)
-	vertices.bufferdataClean = false
+type ModelMatInstances struct {
+	baseBuffer
+	data []ModelMatInstance
 }
 
-func (vertices *VerticesXyzRgb) SetVertexData(vd []VertexXyzRgb) {
-	vertices.vertexdata = make([]VertexXyzRgb, len(vd), len(vd))
-	copy(vertices.vertexdata, vd)
-	vertices.bufferdataClean = false
+func NewVerticesXyz(usage gl.GLenum) *VerticesXyz {
+	buffer := new(VerticesXyz)
+	buffer.gen(gl.ARRAY_BUFFER, usage)
+	return buffer
 }
 
-func (vertices *VerticesXyz) UpdateBuffer() {
-	vertices.updateBuffer(vertices.vertexdata)
+func NewVerticesXyzRgb(usage gl.GLenum) *VerticesXyzRgb {
+	buffer := new(VerticesXyzRgb)
+	buffer.gen(gl.ARRAY_BUFFER, usage)
+	return buffer
 }
 
-func (vertices *VerticesXyzRgb) UpdateBuffer() {
-	vertices.updateBuffer(vertices.vertexdata)
+func NewModelMatInstances(usage gl.GLenum) *ModelMatInstances {
+	buffer := new(ModelMatInstances)
+	buffer.gen(gl.ARRAY_BUFFER, usage)
+	return buffer
+}
+
+//-----------------------------------------------------------------------------
+
+func (buffer *VerticesXyz) SetData(vd []VertexXyz) {
+	buffer.data = make([]VertexXyz, len(vd), len(vd))
+	copy(buffer.data, vd)
+	buffer.bufferdataClean = false
+}
+
+func (buffer *VerticesXyzRgb) SetData(vd []VertexXyzRgb) {
+	buffer.data = make([]VertexXyzRgb, len(vd), len(vd))
+	copy(buffer.data, vd)
+	buffer.bufferdataClean = false
+}
+
+func (buffer *ModelMatInstances) SetData(vd []ModelMatInstance) {
+	buffer.data = make([]ModelMatInstance, len(vd), len(vd))
+	copy(buffer.data, vd)
+	buffer.bufferdataClean = false
+}
+
+func (buffer *VerticesXyz) Update() {
+	buffer.update(buffer.data)
+}
+
+func (buffer *VerticesXyzRgb) Update() {
+	buffer.update(buffer.data)
+}
+
+func (buffer *ModelMatInstances) Update() {
+	buffer.update(buffer.data)
 }
 
 //=============================================================================
@@ -191,27 +114,29 @@ func (vertices *VerticesXyzRgb) UpdateBuffer() {
 // containing what is specific to that Vertices object.  Then we pass it to
 // a generic function.
 
-func (vertices VerticesXyz) SetUpVao(program gl.Program) {
-	vertices.bind()
-	verticesSetUpVao(vertices, program)
-	vertices.unbind()
+func (buffer *VerticesXyz) SetUpVao(program gl.Program) {
+	bufferSetUpVao(buffer, program)
 }
-func (vertices VerticesXyzRgb) SetUpVao(program gl.Program) {
-	vertices.bind()
-	verticesSetUpVao(vertices, program)
-	vertices.unbind()
+func (buffer *VerticesXyzRgb) SetUpVao(program gl.Program) {
+	bufferSetUpVao(buffer, program)
+}
+func (buffer *ModelMatInstances) SetUpVao(program gl.Program) {
+	bufferSetUpVao(buffer, program)
 }
 
-// The verticesSetUpVaoInt contains everything that is needed by the function
-// verticesSetUpVao.
-type verticesSetUpVaoInt interface {
+// The bufferSetUpVaoInt contains everything that is needed by the function
+// bufferSetUpVao.
+type bufferSetUpVaoInt interface {
 	names() []string
 	attribPointers([]gl.AttribLocation)
+	bind()
+	unbind()
 }
 
-func verticesSetUpVao(vertices verticesSetUpVaoInt, program gl.Program) {
+func bufferSetUpVao(buffer bufferSetUpVaoInt, program gl.Program) {
+	buffer.bind()
 	// Collect the attrib locations for each attrib name.
-	atts_names := vertices.names() // Expected GLSL variable names.
+	atts_names := buffer.names() // Expected GLSL variable names.
 	atts := make([]gl.AttribLocation, len(atts_names))
 	for i, att_name := range atts_names {
 		atts[i] = program.GetAttribLocation(att_name)
@@ -222,24 +147,23 @@ func verticesSetUpVao(vertices verticesSetUpVaoInt, program gl.Program) {
 		if atts[i] == -1 {
 			panic(fmt.Sprintf("attrib location %#v not found", att_name))
 		}
-		atts[i].EnableArray()
-		if err := glw.CheckGlError(); err != nil {
-			err.Description = "atts[i].EnableArray()"
-			panic(err)
-		}
 	}
 	// Now that the locations are known, we can relate them to vertex data.
-	vertices.attribPointers(atts)
+	buffer.attribPointers(atts)
+	buffer.unbind()
 }
 
-func (vertices VerticesXyz) names() []string {
+func (buffer *VerticesXyz) names() []string {
 	return []string{"vpos"}
 }
-func (vertices VerticesXyzRgb) names() []string {
+func (buffer *VerticesXyzRgb) names() []string {
 	return []string{"vpos", "vcol"}
 }
+func (buffer *ModelMatInstances) names() []string {
+	return []string{"model_matrix"}
+}
 
-func (vertices VerticesXyz) attribPointers(atts []gl.AttribLocation) {
+func (buffer *VerticesXyz) attribPointers(atts []gl.AttribLocation) {
 	const FLOATSIZE = unsafe.Sizeof(gl.GLfloat(0))
 	const NB_COORDS = 3 // x y and z.
 	const COORDS_SIZE = NB_COORDS * FLOATSIZE
@@ -250,8 +174,15 @@ func (vertices VerticesXyz) attribPointers(atts []gl.AttribLocation) {
 		err.Description = "VerticesXyz atts[0].AttribPointer"
 		panic(err)
 	}
+	for _, att := range atts {
+		att.EnableArray()
+		if err := glw.CheckGlError(); err != nil {
+			err.Description = fmt.Sprintf("atts[%v].EnableArray()\n", att)
+			panic(err)
+		}
+	}
 }
-func (vertices VerticesXyzRgb) attribPointers(atts []gl.AttribLocation) {
+func (buffer *VerticesXyzRgb) attribPointers(atts []gl.AttribLocation) {
 	const FLOATSIZE = unsafe.Sizeof(gl.GLfloat(0))
 	const NB_COORDS = 3 // x y and z.
 	const NB_COLORS = 3 // r g and b.
@@ -269,5 +200,45 @@ func (vertices VerticesXyzRgb) attribPointers(atts []gl.AttribLocation) {
 	if err := glw.CheckGlError(); err != nil {
 		err.Description = "VerticesXyzRgb atts[1].AttribPointer"
 		panic(err)
+	}
+	for _, att := range atts {
+		att.EnableArray()
+		if err := glw.CheckGlError(); err != nil {
+			err.Description = fmt.Sprintf("atts[%v].EnableArray()\n", att)
+			panic(err)
+		}
+	}
+}
+func (buffer *ModelMatInstances) attribPointers(atts []gl.AttribLocation) {
+	const FLOATSIZE = unsafe.Sizeof(gl.GLfloat(0))
+	const NB_COORDS = 4 // 4 floats per matrix row.
+	const NB_ATTS = 4   // Matrix is 4 rows or 4 columns.
+	const COORDS_SIZE = NB_COORDS * FLOATSIZE
+	const COORDS_OFS = uintptr(0)
+	const TOTAL_SIZE = int(COORDS_SIZE) * NB_ATTS
+	for i := 0; i < NB_ATTS; i++ {
+		// We pass each column of the matrix separately.
+		// Because that's how OpenGL does matrix vertex attributes.
+		att := atts[0] + gl.AttribLocation(i)
+		offset := COORDS_OFS + uintptr(i)*COORDS_SIZE
+		att.AttribPointer(NB_COORDS, gl.FLOAT, false, TOTAL_SIZE, offset)
+		if err := glw.CheckGlError(); err != nil {
+			err.Description = "ModelMatInstances att.AttribPointer"
+			panic(err)
+		}
+		// 1 here means that we switch to a new matrix every 1 instance.
+		// This AttribDivisor call with a non-zero value is what makes the
+		// attribute instanced.
+		att.AttribDivisor(1)
+		if err := glw.CheckGlError(); err != nil {
+			err.Description = "ModelMatInstances att.AttribDivisor"
+			panic(err)
+		}
+		// Each column of the matrix must be enabled.
+		att.EnableArray()
+		if err := glw.CheckGlError(); err != nil {
+			err.Description = fmt.Sprintf("atts[%v].EnableArray()\n", att)
+			panic(err)
+		}
 	}
 }

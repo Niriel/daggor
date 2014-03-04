@@ -10,7 +10,7 @@ import (
 // Floor creates the mesh for a floor.
 // It makes no call to OpenGL whatsoever.
 // This can even be called before the context is created.
-func Floor(programs *glw.Programs) Mesh {
+func Floor(programs *glw.Programs) *Mesh {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
 
@@ -23,15 +23,14 @@ func Floor(programs *glw.Programs) Mesh {
 		VertexXyzRgb{p, m, 0, 0, 1, 0},
 		VertexXyzRgb{p, p, 0, 1, 0, 0},
 	}
-	vertices := new(VerticesXyzRgb)
-	vertices.SetVertexData(vertexData)
-	vertices.usage = gl.STATIC_DRAW
+	vertices := NewVerticesXyzRgb(gl.STATIC_DRAW)
+	vertices.SetData(vertexData)
 
 	elementData := []gl.GLubyte{0, 2, 1, 3}
-	elements := new(ElementsUbyte)
-	elements.SetElementData(elementData)
+	elements := NewElementsUbyte(gl.STATIC_DRAW)
+	elements.SetData(elementData)
 
-	uniforms := UniformsLoc{}
+	uniforms := new(UniformsLoc)
 
 	drawer := DrawElement{
 		mode:    gl.TRIANGLE_STRIP,
@@ -39,12 +38,57 @@ func Floor(programs *glw.Programs) Mesh {
 		typ:     gl.UNSIGNED_BYTE,
 		indices: nil,
 	}
-	return MakeMesh(
+	return NewMesh(
 		programs,
 		srefs,
 		vertices,
 		elements,
-		&uniforms,
-		drawer,
+		nil,
+		uniforms,
+		&drawer,
+	)
+}
+
+// Floor creates the mesh for a floor.
+// It makes no call to OpenGL whatsoever.
+// This can even be called before the context is created.
+func FloorInst(programs *glw.Programs) *Mesh {
+	const p = .5 // Plus sign.
+	const m = -p // Minus sign.
+
+	srefs := glw.ShaderRefs{glw.VSH_COL3_INSTANCED, glw.FSH_VCOL}
+
+	vertexData := []VertexXyzRgb{
+		// x y z r v b
+		VertexXyzRgb{m, m, 0, .1, .1, .5},
+		VertexXyzRgb{m, p, 0, .1, .1, .5},
+		VertexXyzRgb{p, m, 0, 0, 1, 0},
+		VertexXyzRgb{p, p, 0, 1, 0, 0},
+	}
+	vertices := NewVerticesXyzRgb(gl.STATIC_DRAW)
+	vertices.SetData(vertexData)
+
+	elementData := []gl.GLubyte{0, 2, 1, 3}
+	elements := NewElementsUbyte(gl.STATIC_DRAW)
+	elements.SetData(elementData)
+
+	instances := NewModelMatInstances(gl.STREAM_DRAW)
+
+	uniforms := new(UniformsLocInstanced)
+
+	drawer := DrawElementInstanced{
+		mode:    gl.TRIANGLE_STRIP,
+		count:   len(elementData),
+		typ:     gl.UNSIGNED_BYTE,
+		indices: nil,
+	}
+	return NewMesh(
+		programs,
+		srefs,
+		vertices,
+		elements,
+		instances,
+		uniforms,
+		&drawer,
 	)
 }

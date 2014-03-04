@@ -12,13 +12,15 @@ type Uniforms interface {
 	SetUpVao(program gl.Program)
 }
 
-type Modeler interface {
-	Model() glm.Matrix4
-	SetModel(glm.Matrix4)
-}
+//----------------------------------------------------------------------------
 
-// For now we have one type of uniform setup only.  In the future we will need
-// more and we'll probably need an interface.
+// To use where there is no uniform to deal with.
+type UniformsNone struct{}
+
+func (unif *UniformsNone) SetUpVao(program gl.Program) {}
+func (unif *UniformsNone) SetGl()                      {}
+
+//----------------------------------------------------------------------------
 type UniformsLoc struct {
 	// Filled when calling the SetUpVao method with a program.
 	globalMatricesUbi gl.UniformBlockIndex
@@ -77,3 +79,33 @@ func (unif UniformsLoc) SetGl() {
 		panic(err)
 	}
 }
+
+//----------------------------------------------------------------------------
+
+type UniformsLocInstanced struct {
+	globalMatricesUbi gl.UniformBlockIndex
+}
+
+func (unif *UniformsLocInstanced) SetUpVao(program gl.Program) {
+	const matricesUbiName = "GlobalMatrices"
+
+	// Uniform Block for the View and Projection matrices.
+	unif.globalMatricesUbi = program.GetUniformBlockIndex(matricesUbiName)
+	if err := glw.CheckGlError(); err != nil {
+		err.Description = fmt.Sprintf("GetUniformBlockIndex(%#v)", matricesUbiName)
+		panic(err)
+	}
+	if unif.globalMatricesUbi == gl.INVALID_INDEX {
+		panic(fmt.Sprintf("GetUniformBlockIndex(%#v) returned INVALID_INDEX", matricesUbiName))
+	}
+
+	program.UniformBlockBinding(
+		unif.globalMatricesUbi,
+		glw.CameraUboBindingPoint)
+	if err := glw.CheckGlError(); err != nil {
+		err.Description = "UniformBlockBinding"
+		panic(err)
+	}
+}
+
+func (unif UniformsLocInstanced) SetGl() {}

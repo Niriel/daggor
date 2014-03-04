@@ -21,6 +21,7 @@ const (
 const (
 	VSH_POS3 = ShaderRef(iota)
 	VSH_COL3
+	VSH_COL3_INSTANCED
 	FSH_ZRED
 	FSH_ZGREEN
 	FSH_VCOL
@@ -91,7 +92,20 @@ func (shaders Shaders) Serve(ref ShaderRef) (gl.Shader, error) {
 		err.Description = fmt.Sprintf("Shader.Compile failed. Log: %v", infolog)
 		return 0, err
 	}
-
+	compileStatus := shader.Get(gl.COMPILE_STATUS)
+	if err := CheckGlError(); err != nil {
+		shader.Delete()
+		gl.GetError()
+		err.Description = "shader.Get(gl.COMPILE_STATUS) failed."
+		return 0, err
+	}
+	if compileStatus == gl.FALSE {
+		infolog := shader.GetInfoLog()
+		shader.Delete()
+		gl.GetError()
+		err := fmt.Errorf("Shader compiling failed.  Log: %v", infolog)
+		return 0, err
+	}
 	shaders[ref] = shader
 	return shader, nil
 }

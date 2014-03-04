@@ -13,6 +13,7 @@ package glm
 
 import (
 	"fmt"
+	"github.com/go-gl/gl"
 	"math"
 )
 
@@ -468,6 +469,14 @@ func (a Matrix4) Gl() [16]float32 {
 	var result [16]float32
 	for i := 0; i < 16; i++ {
 		result[i] = float32(a[i])
+	}
+	return result
+}
+
+func (a Matrix4) GlFloats() [16]gl.GLfloat {
+	var result [16]gl.GLfloat
+	for i := 0; i < 16; i++ {
+		result[i] = gl.GLfloat(a[i])
 	}
 	return result
 }

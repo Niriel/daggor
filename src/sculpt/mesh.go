@@ -7,31 +7,37 @@ import (
 )
 
 type Mesh struct {
-	// Filled in by the CreateMesh constructor.
-	programs *glw.Programs
-	srefs    glw.ShaderRefs
-	Vertices Vertices
-	Elements Elements
-	Uniforms Uniforms
-	drawer   Drawer
+	// Filled in by the MakeMesh constructor.
+	programs  *glw.Programs
+	srefs     glw.ShaderRefs
+	Vertices  Buffer
+	Elements  Buffer
+	Instances Buffer
+	Uniforms  Uniforms
+	Drawer    Drawer
 	// Filled in by the SetUpVao method.
 	vao gl.VertexArray
 }
 
 // MakeMesh creates a mesh from the provided components.
 // It does not make any OpenGL calls.
-func MakeMesh(p *glw.Programs, s glw.ShaderRefs, v Vertices, e Elements, u Uniforms, d Drawer) Mesh {
-	return Mesh{
-		programs: p,
-		srefs:    s,
-		Vertices: v,
-		Elements: e,
-		Uniforms: u,
-		drawer:   d,
+func NewMesh(p *glw.Programs, s glw.ShaderRefs, v, e, i Buffer, u Uniforms, d Drawer) *Mesh {
+	if p == nil {
+		panic("trying to create a mesh with programs=nil")
 	}
+	mesh := Mesh{
+		programs:  p,
+		srefs:     s,
+		Vertices:  v,
+		Elements:  e,
+		Instances: i,
+		Uniforms:  u,
+		Drawer:    d,
+	}
+	return &mesh
 }
 
-func (mesh Mesh) bind() {
+func (mesh *Mesh) bind() {
 	mesh.vao.Bind()
 	if err := glw.CheckGlError(); err != nil {
 		err.Description = "mesh.vao.Bind()"
@@ -39,7 +45,7 @@ func (mesh Mesh) bind() {
 	}
 }
 
-func (mesh Mesh) unbind() {
+func (mesh *Mesh) unbind() {
 	gl.VertexArray(0).Bind()
 	if err := glw.CheckGlError(); err != nil {
 		err.Description = "gl.VertexArray(0).Bind()"
@@ -47,18 +53,18 @@ func (mesh Mesh) unbind() {
 	}
 }
 
-func (mesh Mesh) updateBuffers() {
-	mesh.Vertices.UpdateBuffer()
-	if mesh.Vertices.BufferName() == 0 {
-		panic("Vertices buffer name is still 0.")
-	}
-	mesh.Elements.UpdateBuffer()
-	if mesh.Vertices.BufferName() == 0 {
-		panic("Elements buffer name is still 0.")
+func (mesh *Mesh) updateBuffers() {
+	mesh.Vertices.Update()
+	mesh.Elements.Update()
+	if mesh.Instances != nil {
+		mesh.Instances.Update()
 	}
 }
 
 func (mesh *Mesh) SetUpVao() {
+	if mesh == nil {
+		panic("setting up the vao of a nil mesh")
+	}
 	if mesh.vao != 0 {
 		panic("SetUpVao already called.")
 	}
@@ -69,12 +75,12 @@ func (mesh *Mesh) SetUpVao() {
 		panic(err)
 	}
 
-	// The buffers need to be created in order to be linked to the VAO.
-	// The call to updateBuffers will create the buffers.
-	mesh.updateBuffers()
 	mesh.Vertices.SetUpVao(program)
+	mesh.Elements.SetUpVao(program)
+	if mesh.Instances != nil {
+		mesh.Instances.SetUpVao(program)
+	}
 	mesh.Uniforms.SetUpVao(program)
-	mesh.Elements.SetUpVao()
 
 	mesh.unbind()
 }
@@ -85,10 +91,9 @@ func (mesh *Mesh) DeleteVao() {
 }
 
 func (mesh *Mesh) Draw() {
-	// Assume the program is used.
-	// Assume the textures are bound.
-	// We also assume that each mesh has its own ebo.
-
+	if mesh == nil {
+		panic("drawing nil mesh")
+	}
 	// This needs to go away soon.
 	program, err := mesh.programs.Serve(mesh.srefs)
 	if err != nil {
@@ -114,7 +119,7 @@ func (mesh *Mesh) Draw() {
 		gl.GetError() // Clear error flag if infolog derped.
 		panic(fmt.Errorf("program validation failed with log: %v", infolog))
 	}
-	mesh.drawer.Draw()
+	mesh.Drawer.Draw()
 	mesh.unbind()
 	gl.ProgramUnuse()
 }

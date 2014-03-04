@@ -178,7 +178,7 @@ func viewMatrix(pos world.Position) glm.Matrix4 {
 type glState struct {
 	Window           *glfw.Window
 	glfwKeyEventList *glfwKeyEventList
-	Shapes           [7]sculpt.Mesh
+	Shapes           [7]*sculpt.Mesh
 	context          *glw.GlContext
 }
 
@@ -450,7 +450,7 @@ func main() {
 	//programState.Gl.Shapes[ceilingID] = glw.Ceiling(programState.Gl.context.Programs, UniformBinding)
 	//programState.Gl.Shapes[monsterID] = glw.Monster(programState.Gl.context.Programs, UniformBinding)
 	//programState.Gl.DynaPyramid = glw.DynaPyramid(programState.Gl.context.Programs)
-	programState.Gl.Shapes[floorID] = sculpt.Floor(programState.Gl.context.Programs)
+	programState.Gl.Shapes[floorID] = sculpt.FloorInst(programState.Gl.context.Programs)
 	programState.Gl.Shapes[floorID].SetUpVao()
 
 	// I do not like the default reference frame of OpenGl.
@@ -622,47 +622,6 @@ func render(programState programState) {
 		nil,
 		programState.Gl,
 	)
-	//renderBuildings(
-	//	programState.World.Level.Ceilings,
-	//	0, 0,
-	//	nil,
-	//	programState.Gl,
-	//)
-	//renderBuildings(
-	//	programState.World.Level.Columns,
-	//	-.5, -.5,
-	//	nil,
-	//	programState.Gl,
-	//)
-	//for facing := 0; facing < 4; facing++ {
-	//	defaultR := glm.RotZ(float64(90 * facing))
-	//	renderBuildings(
-	//		programState.World.Level.Walls[facing],
-	//		0, 0,
-	//		&defaultR,
-	//		programState.Gl,
-	//	)
-	//}
-
-	//creatureID, ok := programState.World.Level.CreatureActor.GetCreature(actorID)
-	//creatureLocations := programState.World.Level.CreatureLocation
-	//if ok {
-	//	// Do not render the player creature.
-	//	creatureLocations, _ = creatureLocations.RemoveCreature(creatureID)
-	//}
-	//renderCreatures(
-	//	creatureLocations,
-	//	programState.World.Level.Creatures,
-	//	programState.Gl,
-	//)
-
-	//// Stupid render of the one dynamic object.
-	//dyn := programState.World.Level.Dynamic
-	//m := dyn.ModelMat(programState.World.Time)
-	//mvp := (programState.Gl.P).Mult(v).Mult(m).Gl()
-	//pyr := programState.Gl.DynaPyramid
-	//pyr.UpdateMesh(dyn.Mesh(programState.World.Time))
-	//pyr.Draw(programState.Gl.Programs, &mvp)
 }
 
 func renderBuildings(
@@ -671,6 +630,7 @@ func renderBuildings(
 	defaultR *glm.Matrix4, // Can be nil.
 	glState glState,
 ) {
+	locations := make(map[world.ModelId][]glm.Matrix4)
 	for coords, building := range buildings {
 		m := glm.Vector3{
 			float64(coords.X) + offsetX,
@@ -687,30 +647,36 @@ func renderBuildings(
 			// It is given as a precalculated rotation matrix `defaultR`.
 			m = m.Mult(*defaultR)
 		}
-		mesh := glState.Shapes[building.Model()]
-		modeler, ok := mesh.Uniforms.(sculpt.Modeler)
-		if ok {
-			modeler.SetModel(m)
+		modelID := building.Model()
+		meshlocs := locations[modelID]
+		meshlocs = append(meshlocs, m)
+		locations[modelID] = meshlocs
+	}
+	//
+	for modelID, locs := range locations {
+		mesh := glState.Shapes[modelID]
+		if len(locs) == 0 {
+			panic("empty list of locations for model")
 		}
-		mesh.Draw()
+		unif, ok := mesh.Uniforms.(*sculpt.UniformsLoc)
+		if ok {
+			for _, loc := range locs {
+				unif.SetModel(loc)
+				mesh.Draw()
+			}
+		}
+		inst, ok := mesh.Instances.(*sculpt.ModelMatInstances)
+		if ok {
+			gllocs := make([]sculpt.ModelMatInstance, len(locs), len(locs))
+			for i, mat := range locs {
+				gllocs[i] = sculpt.ModelMatInstance{mat.GlFloats()}
+			}
+			inst.SetData(gllocs)
+		}
+		draw, ok := mesh.Drawer.(*sculpt.DrawElementInstanced)
+		if ok {
+			draw.Primcount = len(locs)
+			mesh.Draw()
+		}
 	}
 }
-
-//func renderCreatures(
-//	creatureLocations world.CreatureLocation,
-//	creatures world.Creatures,
-//	glState glState,
-//) {
-//	for creatureID, creatureLocation := range creatureLocations.Cl {
-//		creature, ok := creatures.Get(creatureID)
-//		if ok {
-//			//m := glm.Vector3{
-//			//	float64(creatureLocation.X),
-//			//	float64(creatureLocation.Y),
-//			//	0,
-//			//}.Translation().Mult(glm.RotZ(float64(90 * creature.F.Value())))
-//			//mgl := m.Gl()
-//			//glState.Shapes[monsterID].Draw(glState.context.Programs, &mgl)
-//		}
-//	}
-//}

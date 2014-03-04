@@ -38,6 +38,27 @@ void main(){
 	gl_Position = projection_matrix * temp;
 	fcol = vcol;
 }`},
+	VSH_COL3_INSTANCED: ShaderSeed{Type: VERTEX_SHADER, Source: `
+#version 330 core
+// Transmits the color to the fragment shader.
+// The model matrix is not in a uniform.  This shader is
+// to be used with instanced rendering.
+
+layout(std140) uniform GlobalMatrices
+{
+    mat4 projection_matrix;
+    mat4 view_matrix;
+};
+in vec3 vpos;
+in vec3 vcol;
+in mat4 model_matrix; // Instanced attribute.
+out vec3 fcol;
+void main(){
+	vec4 temp = model_matrix * vec4(vpos, 1.0);
+	temp = view_matrix * temp;
+	gl_Position = projection_matrix * temp;
+	fcol = vcol;
+}`},
 	FSH_ZRED: ShaderSeed{Type: FRAGMENT_SHADER, Source: `
 #version 330 core
 // Red fragment, the farther the darker (from z coordinate).

@@ -28,3 +28,26 @@ func (drawer DrawElement) Draw() {
 		panic(err)
 	}
 }
+
+// DrawElementInstance curries gl.DrawElementsInstanced.
+type DrawElementInstanced struct {
+	mode      gl.GLenum
+	count     int
+	typ       gl.GLenum
+	indices   interface{}
+	Primcount int
+}
+
+func (drawer DrawElementInstanced) Draw() {
+	gl.DrawElementsInstanced(
+		drawer.mode,
+		drawer.count,
+		drawer.typ,
+		drawer.indices,
+		drawer.Primcount,
+	)
+	if err := glw.CheckGlError(); err != nil {
+		err.Description = "gl.DrawElementsInstanced"
+		panic(err)
+	}
+}

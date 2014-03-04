@@ -95,7 +95,7 @@ func (self *Programs) Serve(srefs ShaderRefs) (gl.Program, error) {
 		err.Description = "Program.Get(LINK_STATUS) failed."
 		return 0, err
 	}
-	if link_status == 0 {
+	if link_status == gl.FALSE {
 		infolog := program.GetInfoLog()
 		program.Delete()
 		gl.GetError()
