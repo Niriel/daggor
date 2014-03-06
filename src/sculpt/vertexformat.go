@@ -3,6 +3,7 @@ package sculpt
 import (
 	"fmt"
 	"github.com/go-gl/gl"
+	"glm"
 	"glw"
 	"unsafe"
 )
@@ -70,6 +71,10 @@ func NewModelMatInstances(usage gl.GLenum) *ModelMatInstances {
 	return buffer
 }
 
+type locationDataSetter interface {
+	SetLocationData([]glm.Matrix4)
+}
+
 //-----------------------------------------------------------------------------
 
 func (buffer *VerticesXyz) SetData(vd []VertexXyz) {
@@ -84,9 +89,11 @@ func (buffer *VerticesXyzRgb) SetData(vd []VertexXyzRgb) {
 	buffer.bufferdataClean = false
 }
 
-func (buffer *ModelMatInstances) SetData(vd []ModelMatInstance) {
-	buffer.data = make([]ModelMatInstance, len(vd), len(vd))
-	copy(buffer.data, vd)
+func (buffer *ModelMatInstances) SetLocationData(locations []glm.Matrix4) {
+	buffer.data = make([]ModelMatInstance, len(locations), len(locations))
+	for i, m := range locations {
+		buffer.data[i] = ModelMatInstance{m.GlFloats()}
+	}
 	buffer.bufferdataClean = false
 }
 

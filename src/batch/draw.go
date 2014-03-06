@@ -5,15 +5,15 @@ import (
 )
 
 type DrawBatch struct {
-	drawer sculpt.Drawer
+	drawer sculpt.MeshDrawer
 }
 
-func MakeDrawBatch(drawer sculpt.Drawer) DrawBatch {
+func MakeDrawBatch(drawer sculpt.MeshDrawer) DrawBatch {
 	return DrawBatch{drawer: drawer}
 }
 
 func (batch DrawBatch) Enter() {}
 func (batch DrawBatch) Exit()  {}
 func (batch DrawBatch) Run() {
-	batch.drawer.Draw()
+	batch.drawer.DrawMesh(nil)
 }

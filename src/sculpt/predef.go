@@ -10,7 +10,7 @@ import (
 // Floor creates the mesh for a floor.
 // It makes no call to OpenGL whatsoever.
 // This can even be called before the context is created.
-func Floor(programs *glw.Programs) *Mesh {
+func Floor(programs *glw.Programs) MeshDrawer {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
 
@@ -38,12 +38,11 @@ func Floor(programs *glw.Programs) *Mesh {
 		typ:     gl.UNSIGNED_BYTE,
 		indices: nil,
 	}
-	return NewMesh(
+	return NewUninstancedMesh(
 		programs,
 		srefs,
 		vertices,
 		elements,
-		nil,
 		uniforms,
 		&drawer,
 	)
@@ -52,7 +51,7 @@ func Floor(programs *glw.Programs) *Mesh {
 // Floor creates the mesh for a floor.
 // It makes no call to OpenGL whatsoever.
 // This can even be called before the context is created.
-func FloorInst(programs *glw.Programs) *Mesh {
+func FloorInst(programs *glw.Programs) MeshDrawer {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
 
@@ -82,7 +81,7 @@ func FloorInst(programs *glw.Programs) *Mesh {
 		typ:     gl.UNSIGNED_BYTE,
 		indices: nil,
 	}
-	return NewMesh(
+	return NewInstancedMesh(
 		programs,
 		srefs,
 		vertices,

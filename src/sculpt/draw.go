@@ -8,7 +8,11 @@ import (
 // Drawer interface abstracts all the possible OpenGL Draw calls.
 // The Draw method takes no argument, it is assume that all the arguments are
 // already curried.
-type Drawer interface {
+type InstancedDrawer interface {
+	Draw(primcount int)
+}
+
+type UninstancedDrawer interface {
 	Draw()
 }
 
@@ -31,20 +35,19 @@ func (drawer DrawElement) Draw() {
 
 // DrawElementInstance curries gl.DrawElementsInstanced.
 type DrawElementInstanced struct {
-	mode      gl.GLenum
-	count     int
-	typ       gl.GLenum
-	indices   interface{}
-	Primcount int
+	mode    gl.GLenum
+	count   int
+	typ     gl.GLenum
+	indices interface{}
 }
 
-func (drawer DrawElementInstanced) Draw() {
+func (drawer DrawElementInstanced) Draw(primcount int) {
 	gl.DrawElementsInstanced(
 		drawer.mode,
 		drawer.count,
 		drawer.typ,
 		drawer.indices,
-		drawer.Primcount,
+		primcount,
 	)
 	if err := glw.CheckGlError(); err != nil {
 		err.Description = "gl.DrawElementsInstanced"

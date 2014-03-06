@@ -44,7 +44,7 @@ func viewMatrix(pos world.Position) glm.Matrix4 {
 type glState struct {
 	Window           *glfw.Window
 	glfwKeyEventList *glfwKeyEventList
-	Shapes           [7]*sculpt.Mesh
+	Shapes           [7]sculpt.MeshDrawer
 	context          *glw.GlContext
 }
 
@@ -109,7 +109,6 @@ func main() {
 	//programState.Gl.Shapes[monsterID] = glw.Monster(programState.Gl.context.Programs, UniformBinding)
 	//programState.Gl.DynaPyramid = glw.DynaPyramid(programState.Gl.context.Programs)
 	programState.Gl.Shapes[floorID] = sculpt.FloorInst(programState.Gl.context.Programs)
-	programState.Gl.Shapes[floorID].SetUpVao()
 
 	// I do not like the default reference frame of OpenGl.
 	// By default, we look in the direction -z, and y points up.
@@ -317,28 +316,6 @@ func renderBuildings(
 	//
 	for modelID, locs := range locations {
 		mesh := glState.Shapes[modelID]
-		if len(locs) == 0 {
-			panic("empty list of locations for model")
-		}
-		unif, ok := mesh.Uniforms.(*sculpt.UniformsLoc)
-		if ok {
-			for _, loc := range locs {
-				unif.SetModel(loc)
-				mesh.Draw()
-			}
-		}
-		inst, ok := mesh.Instances.(*sculpt.ModelMatInstances)
-		if ok {
-			gllocs := make([]sculpt.ModelMatInstance, len(locs), len(locs))
-			for i, mat := range locs {
-				gllocs[i] = sculpt.ModelMatInstance{mat.GlFloats()}
-			}
-			inst.SetData(gllocs)
-		}
-		draw, ok := mesh.Drawer.(*sculpt.DrawElementInstanced)
-		if ok {
-			draw.Primcount = len(locs)
-			mesh.Draw()
-		}
+		mesh.DrawMesh(locs)
 	}
 }

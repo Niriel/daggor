@@ -3,8 +3,13 @@ package sculpt
 import (
 	"fmt"
 	"github.com/go-gl/gl"
+	"glm"
 	"glw"
 )
+
+type MeshDrawer interface {
+	DrawMesh([]glm.Matrix4)
+}
 
 type Mesh struct {
 	// Filled in by the MakeMesh constructor.
@@ -14,27 +19,9 @@ type Mesh struct {
 	Elements  Buffer
 	Instances Buffer
 	Uniforms  Uniforms
-	Drawer    Drawer
+
 	// Filled in by the SetUpVao method.
 	vao gl.VertexArray
-}
-
-// MakeMesh creates a mesh from the provided components.
-// It does not make any OpenGL calls.
-func NewMesh(p *glw.Programs, s glw.ShaderRefs, v, e, i Buffer, u Uniforms, d Drawer) *Mesh {
-	if p == nil {
-		panic("trying to create a mesh with programs=nil")
-	}
-	mesh := Mesh{
-		programs:  p,
-		srefs:     s,
-		Vertices:  v,
-		Elements:  e,
-		Instances: i,
-		Uniforms:  u,
-		Drawer:    d,
-	}
-	return &mesh
 }
 
 func (mesh *Mesh) bind() {
@@ -61,7 +48,7 @@ func (mesh *Mesh) updateBuffers() {
 	}
 }
 
-func (mesh *Mesh) SetUpVao() {
+func (mesh *Mesh) setUpVao() {
 	if mesh == nil {
 		panic("setting up the vao of a nil mesh")
 	}
@@ -90,20 +77,120 @@ func (mesh *Mesh) DeleteVao() {
 	mesh.vao = 0
 }
 
-func (mesh *Mesh) Draw() {
+//-----------------------------------------------------------------------------
+type InstancedMesh struct {
+	Mesh
+	Drawer InstancedDrawer
+}
+
+func NewInstancedMesh(p *glw.Programs,
+	s glw.ShaderRefs,
+	v, e, i Buffer,
+	u Uniforms, d InstancedDrawer) *InstancedMesh {
+	if p == nil {
+		panic("trying to create a mesh with programs=nil")
+	}
+	mesh := new(InstancedMesh)
+	mesh.programs = p
+	mesh.srefs = s
+	mesh.Vertices = v
+	mesh.Elements = e
+	mesh.Instances = i
+	mesh.Uniforms = u
+	mesh.Drawer = d
+	return mesh
+}
+
+func (mesh *InstancedMesh) DrawMesh(locations []glm.Matrix4) {
 	if mesh == nil {
 		panic("drawing nil mesh")
+	}
+	if len(locations) == 0 {
+		return
+	}
+	if mesh.vao == 0 {
+		mesh.setUpVao()
 	}
 	// This needs to go away soon.
 	program, err := mesh.programs.Serve(mesh.srefs)
 	if err != nil {
 		panic(err)
 	}
-
 	program.Use()
+
+	if instances, ok := mesh.Instances.(locationDataSetter); ok {
+		instances.SetLocationData(locations)
+	} else {
+		panic("mesh instance buffer refuses locations")
+	}
+
 	mesh.updateBuffers()
 	mesh.bind()
 	mesh.Uniforms.SetGl()
+	validateProgram(program)
+	mesh.Drawer.Draw(len(locations))
+	mesh.unbind()
+	gl.ProgramUnuse()
+}
+
+//-----------------------------------------------------------------------------
+type UninstancedMesh struct {
+	Mesh
+	Drawer UninstancedDrawer
+}
+
+func NewUninstancedMesh(
+	p *glw.Programs,
+	s glw.ShaderRefs,
+	v, e Buffer,
+	u Uniforms,
+	d UninstancedDrawer,
+) *UninstancedMesh {
+	if p == nil {
+		panic("trying to create a mesh with programs=nil")
+	}
+	mesh := new(UninstancedMesh)
+	mesh.programs = p
+	mesh.srefs = s
+	mesh.Vertices = v
+	mesh.Elements = e
+	mesh.Instances = nil
+	mesh.Uniforms = u
+	mesh.Drawer = d
+	return mesh
+}
+
+func (mesh *UninstancedMesh) DrawMesh(locations []glm.Matrix4) {
+	if mesh == nil {
+		panic("drawing nil mesh")
+	}
+	if len(locations) == 0 {
+		return
+	}
+	if mesh.vao == 0 {
+		mesh.setUpVao()
+	}
+	// This needs to go away soon.
+	program, err := mesh.programs.Serve(mesh.srefs)
+	if err != nil {
+		panic(err)
+	}
+	program.Use()
+
+	mesh.updateBuffers()
+	mesh.bind()
+	for _, location := range locations {
+		mesh.Uniforms.SetLocation(location)
+		mesh.Uniforms.SetGl()
+		validateProgram(program)
+		mesh.Drawer.Draw()
+	}
+	mesh.unbind()
+	gl.ProgramUnuse()
+}
+
+//-----------------------------------------------------------------------------
+func validateProgram(program gl.Program) {
 	program.Validate()
 	if err := glw.CheckGlError(); err != nil {
 		err.Description = "program.Validate failed"
@@ -119,7 +206,4 @@ func (mesh *Mesh) Draw() {
 		gl.GetError() // Clear error flag if infolog derped.
 		panic(fmt.Errorf("program validation failed with log: %v", infolog))
 	}
-	mesh.Drawer.Draw()
-	mesh.unbind()
-	gl.ProgramUnuse()
 }
