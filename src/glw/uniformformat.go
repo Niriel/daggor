@@ -1,10 +1,9 @@
-package sculpt
+package glw
 
 import (
 	"fmt"
 	"github.com/go-gl/gl"
 	"glm"
-	"glw"
 )
 
 type Uniforms interface {
@@ -37,7 +36,7 @@ func (unif *UniformsLoc) SetUpVao(program gl.Program) {
 	// The Model transformation matrix.
 	// Soon to be replaced by a ModelView, as this reduces rounding errors.
 	unif.modelLoc = program.GetUniformLocation(modelLocName)
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = fmt.Sprintf("program.GetUniformLocation(%#v)", modelLocName)
 		panic(err)
 	}
@@ -47,7 +46,7 @@ func (unif *UniformsLoc) SetUpVao(program gl.Program) {
 
 	// Uniform Block for the View and Projection matrices.
 	unif.globalMatricesUbi = program.GetUniformBlockIndex(matricesUbiName)
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = fmt.Sprintf("GetUniformBlockIndex(%#v)", matricesUbiName)
 		panic(err)
 	}
@@ -57,8 +56,8 @@ func (unif *UniformsLoc) SetUpVao(program gl.Program) {
 
 	program.UniformBlockBinding(
 		unif.globalMatricesUbi,
-		glw.CameraUboBindingPoint)
-	if err := glw.CheckGlError(); err != nil {
+		CameraUboBindingPoint)
+	if err := CheckGlError(); err != nil {
 		err.Description = "UniformBlockBinding"
 		panic(err)
 	}
@@ -75,7 +74,7 @@ func (unif *UniformsLoc) SetLocation(location glm.Matrix4) {
 func (unif *UniformsLoc) SetGl() {
 	glMat := unif.location.Gl()
 	unif.modelLoc.UniformMatrix4f(false, &glMat)
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = "unif.modelLoc.UniformMatrix4f(false, &glMat)"
 		panic(err)
 	}
@@ -92,7 +91,7 @@ func (unif *UniformsLocInstanced) SetUpVao(program gl.Program) {
 
 	// Uniform Block for the View and Projection matrices.
 	unif.globalMatricesUbi = program.GetUniformBlockIndex(matricesUbiName)
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = fmt.Sprintf("GetUniformBlockIndex(%#v)", matricesUbiName)
 		panic(err)
 	}
@@ -102,8 +101,8 @@ func (unif *UniformsLocInstanced) SetUpVao(program gl.Program) {
 
 	program.UniformBlockBinding(
 		unif.globalMatricesUbi,
-		glw.CameraUboBindingPoint)
-	if err := glw.CheckGlError(); err != nil {
+		CameraUboBindingPoint)
+	if err := CheckGlError(); err != nil {
 		err.Description = "UniformBlockBinding"
 		panic(err)
 	}

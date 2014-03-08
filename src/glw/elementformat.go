@@ -1,4 +1,4 @@
-package sculpt
+package glw
 
 import (
 	"github.com/go-gl/gl"

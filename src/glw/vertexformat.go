@@ -1,10 +1,9 @@
-package sculpt
+package glw
 
 import (
 	"fmt"
 	"github.com/go-gl/gl"
 	"glm"
-	"glw"
 	"unsafe"
 )
 
@@ -147,7 +146,7 @@ func bufferSetUpVao(buffer bufferSetUpVaoInt, program gl.Program) {
 	atts := make([]gl.AttribLocation, len(atts_names))
 	for i, att_name := range atts_names {
 		atts[i] = program.GetAttribLocation(att_name)
-		if err := glw.CheckGlError(); err != nil {
+		if err := CheckGlError(); err != nil {
 			err.Description = fmt.Sprintf("program.GetAttribLocation(%#v)", att_name)
 			panic(err)
 		}
@@ -177,13 +176,13 @@ func (buffer *VerticesXyz) attribPointers(atts []gl.AttribLocation) {
 	const COORDS_OFS = uintptr(0)
 	const TOTAL_SIZE = int(COORDS_SIZE)
 	atts[0].AttribPointer(NB_COORDS, gl.FLOAT, false, TOTAL_SIZE, COORDS_OFS)
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = "VerticesXyz atts[0].AttribPointer"
 		panic(err)
 	}
 	for _, att := range atts {
 		att.EnableArray()
-		if err := glw.CheckGlError(); err != nil {
+		if err := CheckGlError(); err != nil {
 			err.Description = fmt.Sprintf("atts[%v].EnableArray()\n", att)
 			panic(err)
 		}
@@ -199,18 +198,18 @@ func (buffer *VerticesXyzRgb) attribPointers(atts []gl.AttribLocation) {
 	const COLORS_OFS = uintptr(COORDS_SIZE)
 	const TOTAL_SIZE = int(COORDS_SIZE + COLORS_SIZE)
 	atts[0].AttribPointer(NB_COORDS, gl.FLOAT, false, TOTAL_SIZE, COORDS_OFS)
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = "VerticesXyzRgb atts[0].AttribPointer"
 		panic(err)
 	}
 	atts[1].AttribPointer(NB_COLORS, gl.FLOAT, false, TOTAL_SIZE, COLORS_OFS)
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = "VerticesXyzRgb atts[1].AttribPointer"
 		panic(err)
 	}
 	for _, att := range atts {
 		att.EnableArray()
-		if err := glw.CheckGlError(); err != nil {
+		if err := CheckGlError(); err != nil {
 			err.Description = fmt.Sprintf("atts[%v].EnableArray()\n", att)
 			panic(err)
 		}
@@ -229,7 +228,7 @@ func (buffer *ModelMatInstances) attribPointers(atts []gl.AttribLocation) {
 		att := atts[0] + gl.AttribLocation(i)
 		offset := COORDS_OFS + uintptr(i)*COORDS_SIZE
 		att.AttribPointer(NB_COORDS, gl.FLOAT, false, TOTAL_SIZE, offset)
-		if err := glw.CheckGlError(); err != nil {
+		if err := CheckGlError(); err != nil {
 			err.Description = "ModelMatInstances att.AttribPointer"
 			panic(err)
 		}
@@ -237,13 +236,13 @@ func (buffer *ModelMatInstances) attribPointers(atts []gl.AttribLocation) {
 		// This AttribDivisor call with a non-zero value is what makes the
 		// attribute instanced.
 		att.AttribDivisor(1)
-		if err := glw.CheckGlError(); err != nil {
+		if err := CheckGlError(); err != nil {
 			err.Description = "ModelMatInstances att.AttribDivisor"
 			panic(err)
 		}
 		// Each column of the matrix must be enabled.
 		att.EnableArray()
-		if err := glw.CheckGlError(); err != nil {
+		if err := CheckGlError(); err != nil {
 			err.Description = fmt.Sprintf("atts[%v].EnableArray()\n", att)
 			panic(err)
 		}

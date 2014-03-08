@@ -1,4 +1,4 @@
-package sculpt
+package glw
 
 import (
 	"encoding/binary"

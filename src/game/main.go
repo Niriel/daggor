@@ -44,7 +44,7 @@ func viewMatrix(pos world.Position) glm.Matrix4 {
 type glState struct {
 	Window           *glfw.Window
 	glfwKeyEventList *glfwKeyEventList
-	Shapes           [7]sculpt.MeshDrawer
+	Shapes           [7]glw.MeshDrawer
 	context          *glw.GlContext
 }
 

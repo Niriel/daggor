@@ -1,14 +1,14 @@
 package batch
 
 import (
-	"sculpt"
+	"glw"
 )
 
 type DrawBatch struct {
-	drawer sculpt.MeshDrawer
+	drawer glw.MeshDrawer
 }
 
-func MakeDrawBatch(drawer sculpt.MeshDrawer) DrawBatch {
+func MakeDrawBatch(drawer glw.MeshDrawer) DrawBatch {
 	return DrawBatch{drawer: drawer}
 }
 

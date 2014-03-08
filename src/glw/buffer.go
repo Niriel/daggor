@@ -1,10 +1,9 @@
-package sculpt
+package glw
 
 import (
 	"bytes"
 	"encoding/binary"
 	"github.com/go-gl/gl"
-	"glw"
 )
 
 // Concrete classes of array buffers must satisfy this public interface.
@@ -50,7 +49,7 @@ func (buffer *baseBuffer) bind() {
 		panic("tried to bind buffer 0")
 	}
 	buffer.name.Bind(buffer.target)
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = "buffer.name.Bind(buffer.target)"
 		panic(err)
 	}
@@ -61,7 +60,7 @@ func (buffer *baseBuffer) unbind() {
 		panic("tried to unbind buffer 0")
 	}
 	buffer.name.Unbind(buffer.target)
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = "buffer.name.Unbind(buffer.target)"
 		panic(err)
 	}
@@ -103,7 +102,7 @@ func (buffer *baseBuffer) update(vertexdata interface{}) {
 			&buffer.bufferdata[0],
 			buffer.usage,
 		)
-		if err := glw.CheckGlError(); err != nil {
+		if err := CheckGlError(); err != nil {
 			err.Description = "gl.BufferData"
 			panic(err)
 		}
@@ -115,7 +114,7 @@ func (buffer *baseBuffer) update(vertexdata interface{}) {
 			len(buffer.bufferdata),
 			&buffer.bufferdata[0],
 		)
-		if err := glw.CheckGlError(); err != nil {
+		if err := CheckGlError(); err != nil {
 			err.Description = "gl.BufferSubData"
 			panic(err)
 		}

@@ -10,35 +10,35 @@ import (
 // Floor creates the mesh for a floor.
 // It makes no call to OpenGL whatsoever.
 // This can even be called before the context is created.
-func Floor(programs glw.Programs) MeshDrawer {
+func Floor(programs glw.Programs) glw.MeshDrawer {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
 
 	srefs := glw.ShaderRefs{glw.VSH_COL3, glw.FSH_VCOL}
 
-	vertexData := []VertexXyzRgb{
+	vertexData := []glw.VertexXyzRgb{
 		// x y z r v b
-		VertexXyzRgb{m, m, 0, .1, .1, .5},
-		VertexXyzRgb{m, p, 0, .1, .1, .5},
-		VertexXyzRgb{p, m, 0, 0, 1, 0},
-		VertexXyzRgb{p, p, 0, 1, 0, 0},
+		glw.VertexXyzRgb{m, m, 0, .1, .1, .5},
+		glw.VertexXyzRgb{m, p, 0, .1, .1, .5},
+		glw.VertexXyzRgb{p, m, 0, 0, 1, 0},
+		glw.VertexXyzRgb{p, p, 0, 1, 0, 0},
 	}
-	vertices := NewVerticesXyzRgb(gl.STATIC_DRAW)
+	vertices := glw.NewVerticesXyzRgb(gl.STATIC_DRAW)
 	vertices.SetData(vertexData)
 
 	elementData := []gl.GLubyte{0, 2, 1, 3}
-	elements := NewElementsUbyte(gl.STATIC_DRAW)
+	elements := glw.NewElementsUbyte(gl.STATIC_DRAW)
 	elements.SetData(elementData)
 
-	uniforms := new(UniformsLoc)
+	uniforms := new(glw.UniformsLoc)
 
-	drawer := DrawElement{
-		mode:    gl.TRIANGLE_STRIP,
-		count:   len(elementData),
-		typ:     gl.UNSIGNED_BYTE,
-		indices: nil,
-	}
-	return NewUninstancedMesh(
+	drawer := glw.MakeDrawElement(
+		gl.TRIANGLE_STRIP,
+		len(elementData),
+		gl.UNSIGNED_BYTE,
+	)
+
+	return glw.NewUninstancedMesh(
 		programs,
 		srefs,
 		vertices,
@@ -51,37 +51,36 @@ func Floor(programs glw.Programs) MeshDrawer {
 // Floor creates the mesh for a floor.
 // It makes no call to OpenGL whatsoever.
 // This can even be called before the context is created.
-func FloorInst(programs glw.Programs) MeshDrawer {
+func FloorInst(programs glw.Programs) glw.MeshDrawer {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
 
 	srefs := glw.ShaderRefs{glw.VSH_COL3_INSTANCED, glw.FSH_VCOL}
 
-	vertexData := []VertexXyzRgb{
+	vertexData := []glw.VertexXyzRgb{
 		// x y z r v b
-		VertexXyzRgb{m, m, 0, .1, .1, .5},
-		VertexXyzRgb{m, p, 0, .1, .1, .5},
-		VertexXyzRgb{p, m, 0, 0, 1, 0},
-		VertexXyzRgb{p, p, 0, 1, 0, 0},
+		glw.VertexXyzRgb{m, m, 0, .1, .1, .5},
+		glw.VertexXyzRgb{m, p, 0, .1, .1, .5},
+		glw.VertexXyzRgb{p, m, 0, 0, 1, 0},
+		glw.VertexXyzRgb{p, p, 0, 1, 0, 0},
 	}
-	vertices := NewVerticesXyzRgb(gl.STATIC_DRAW)
+	vertices := glw.NewVerticesXyzRgb(gl.STATIC_DRAW)
 	vertices.SetData(vertexData)
 
 	elementData := []gl.GLubyte{0, 2, 1, 3}
-	elements := NewElementsUbyte(gl.STATIC_DRAW)
+	elements := glw.NewElementsUbyte(gl.STATIC_DRAW)
 	elements.SetData(elementData)
 
-	instances := NewModelMatInstances(gl.STREAM_DRAW)
+	instances := glw.NewModelMatInstances(gl.STREAM_DRAW)
 
-	uniforms := new(UniformsLocInstanced)
+	uniforms := new(glw.UniformsLocInstanced)
 
-	drawer := DrawElementInstanced{
-		mode:    gl.TRIANGLE_STRIP,
-		count:   len(elementData),
-		typ:     gl.UNSIGNED_BYTE,
-		indices: nil,
-	}
-	return NewInstancedMesh(
+	drawer := glw.MakeDrawElementInstanced(
+		gl.TRIANGLE_STRIP,
+		len(elementData),
+		gl.UNSIGNED_BYTE,
+	)
+	return glw.NewInstancedMesh(
 		programs,
 		srefs,
 		vertices,

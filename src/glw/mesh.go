@@ -1,15 +1,14 @@
-package sculpt
+package glw
 
 import (
 	"fmt"
 	"github.com/go-gl/gl"
 	"glm"
-	"glw"
 )
 
 type Vao struct {
-	programs  glw.Programs
-	srefs     glw.ShaderRefs
+	programs  Programs
+	srefs     ShaderRefs
 	Vertices  Buffer
 	Elements  Buffer
 	Instances Buffer
@@ -21,7 +20,7 @@ type Vao struct {
 
 func (vao *Vao) bind() {
 	vao.vao.Bind()
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = "vao.vao.Bind()"
 		panic(err)
 	}
@@ -29,7 +28,7 @@ func (vao *Vao) bind() {
 
 func (vao *Vao) unbind() {
 	gl.VertexArray(0).Bind()
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = "gl.VertexArray(0).Bind()"
 		panic(err)
 	}
@@ -83,8 +82,8 @@ type InstancedMesh struct {
 }
 
 func NewInstancedMesh(
-	p glw.Programs,
-	s glw.ShaderRefs,
+	p Programs,
+	s ShaderRefs,
 	v, e, i Buffer,
 	u Uniforms, d InstancedDrawer) *InstancedMesh {
 	mesh := new(InstancedMesh)
@@ -137,8 +136,8 @@ type UninstancedMesh struct {
 }
 
 func NewUninstancedMesh(
-	p glw.Programs,
-	s glw.ShaderRefs,
+	p Programs,
+	s ShaderRefs,
 	v, e Buffer,
 	u Uniforms,
 	d UninstancedDrawer,
@@ -186,12 +185,12 @@ func (mesh *UninstancedMesh) DrawMesh(locations []glm.Matrix4) {
 //-----------------------------------------------------------------------------
 func validateProgram(program gl.Program) {
 	program.Validate()
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = "program.Validate failed"
 		panic(err)
 	}
 	status := program.Get(gl.VALIDATE_STATUS)
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = "program.Get(VALIDATE_STATUS) failed"
 		panic(err)
 	}

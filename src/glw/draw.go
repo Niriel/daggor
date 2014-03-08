@@ -1,8 +1,7 @@
-package sculpt
+package glw
 
 import (
 	"github.com/go-gl/gl"
-	"glw"
 )
 
 // Drawer interface abstracts all the possible OpenGL Draw calls.
@@ -24,10 +23,14 @@ type DrawElement struct {
 	indices interface{}
 }
 
+func MakeDrawElement(mode gl.GLenum, count int, typ gl.GLenum) DrawElement {
+	return DrawElement{mode: mode, count: count, typ: typ}
+}
+
 // This Draw method is a wrapper to gl.DrawElements.
 func (drawer DrawElement) Draw() {
 	gl.DrawElements(drawer.mode, drawer.count, drawer.typ, drawer.indices)
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = "gl.DrawElements"
 		panic(err)
 	}
@@ -41,6 +44,14 @@ type DrawElementInstanced struct {
 	indices interface{}
 }
 
+func MakeDrawElementInstanced(mode gl.GLenum, count int, typ gl.GLenum) DrawElementInstanced {
+	return DrawElementInstanced{
+		mode:  mode,
+		count: count,
+		typ:   typ,
+	}
+}
+
 func (drawer DrawElementInstanced) Draw(primcount int) {
 	gl.DrawElementsInstanced(
 		drawer.mode,
@@ -49,7 +60,7 @@ func (drawer DrawElementInstanced) Draw(primcount int) {
 		drawer.indices,
 		primcount,
 	)
-	if err := glw.CheckGlError(); err != nil {
+	if err := CheckGlError(); err != nil {
 		err.Description = "gl.DrawElementsInstanced"
 		panic(err)
 	}
