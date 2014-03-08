@@ -31,14 +31,14 @@ type Programs struct {
 	programs map[programRef]gl.Program
 }
 
-func NewPrograms() *Programs {
+func NewPrograms() Programs {
 	var programs Programs
 	programs.shaders = MakeShaders()
 	programs.programs = make(map[programRef]gl.Program)
-	return &programs
+	return programs
 }
 
-func (self *Programs) Serve(srefs ShaderRefs) (gl.Program, error) {
+func (self Programs) Serve(srefs ShaderRefs) (gl.Program, error) {
 	pref := makeProgramRef(srefs)
 	program, ok := self.programs[pref]
 	if ok {

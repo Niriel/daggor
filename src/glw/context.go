@@ -11,7 +11,7 @@ const CameraUboBindingPoint = 0
 type GlContext struct {
 	cameraProj glm.Matrix4
 	cameraUbo  gl.Buffer
-	Programs   *Programs
+	Programs   Programs
 	// The Program in use.  Set by ProgramBatch.  Usable by uniform batches
 	// when they need to validate their inputs before a draw call.
 	Program gl.Program

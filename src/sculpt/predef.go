@@ -10,7 +10,7 @@ import (
 // Floor creates the mesh for a floor.
 // It makes no call to OpenGL whatsoever.
 // This can even be called before the context is created.
-func Floor(programs *glw.Programs) MeshDrawer {
+func Floor(programs glw.Programs) MeshDrawer {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
 
@@ -51,7 +51,7 @@ func Floor(programs *glw.Programs) MeshDrawer {
 // Floor creates the mesh for a floor.
 // It makes no call to OpenGL whatsoever.
 // This can even be called before the context is created.
-func FloorInst(programs *glw.Programs) MeshDrawer {
+func FloorInst(programs glw.Programs) MeshDrawer {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
 
