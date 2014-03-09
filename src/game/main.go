@@ -44,7 +44,7 @@ func viewMatrix(pos world.Position) glm.Matrix4 {
 type glState struct {
 	Window           *glfw.Window
 	glfwKeyEventList *glfwKeyEventList
-	Shapes           [7]glw.MeshDrawer
+	Shapes           [7]glw.Renderer
 	context          *glw.GlContext
 }
 
@@ -316,6 +316,6 @@ func renderBuildings(
 	//
 	for modelID, locs := range locations {
 		mesh := glState.Shapes[modelID]
-		mesh.DrawMesh(locs)
+		mesh.Render(locs)
 	}
 }

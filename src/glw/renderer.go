@@ -6,7 +6,12 @@ import (
 	"glm"
 )
 
-type Vao struct {
+type Renderer interface {
+	Render(locations []glm.Matrix4)
+	SetUp()
+}
+
+type renderer struct {
 	programs  Programs
 	srefs     ShaderRefs
 	Vertices  Buffer
@@ -14,19 +19,19 @@ type Vao struct {
 	Instances Buffer
 	Uniforms  Uniforms
 
-	// Filled in by the SetUpVao method.
+	// Filled in by the SetUp method.
 	vao gl.VertexArray
 }
 
-func (vao *Vao) bind() {
-	vao.vao.Bind()
+func (renderer *renderer) bind() {
+	renderer.vao.Bind()
 	if err := CheckGlError(); err != nil {
-		err.Description = "vao.vao.Bind()"
+		err.Description = "renderer.vao.Bind()"
 		panic(err)
 	}
 }
 
-func (vao *Vao) unbind() {
+func (renderer *renderer) unbind() {
 	gl.VertexArray(0).Bind()
 	if err := CheckGlError(); err != nil {
 		err.Description = "gl.VertexArray(0).Bind()"
@@ -34,50 +39,47 @@ func (vao *Vao) unbind() {
 	}
 }
 
-func (vao *Vao) updateBuffers() {
-	vao.Vertices.Update()
-	vao.Elements.Update()
-	if vao.Instances != nil {
-		vao.Instances.Update()
+func (renderer *renderer) updateBuffers() {
+	renderer.Vertices.Update()
+	renderer.Elements.Update()
+	if renderer.Instances != nil {
+		renderer.Instances.Update()
 	}
 }
 
-func (vao *Vao) setUp() {
-	if vao == nil {
-		panic("setting up a nil vao")
+func (renderer *renderer) SetUp() {
+	if renderer == nil {
+		panic("setting up a nil renderer")
 	}
-	if vao.vao != 0 {
-		panic("setUp already called.")
+	if renderer.vao != 0 {
+		return
 	}
-	vao.vao = gl.GenVertexArray() // Cannot fail.
-	vao.bind()
-	program, err := vao.programs.Serve(vao.srefs)
+	renderer.vao = gl.GenVertexArray() // Cannot fail.
+	renderer.bind()
+	program, err := renderer.programs.Serve(renderer.srefs)
 	if err != nil {
 		panic(err)
 	}
 
-	vao.Vertices.SetUpVao(program)
-	vao.Elements.SetUpVao(program)
-	if vao.Instances != nil {
-		vao.Instances.SetUpVao(program)
+	renderer.Vertices.SetUpVao(program)
+	renderer.Elements.SetUpVao(program)
+	if renderer.Instances != nil {
+		renderer.Instances.SetUpVao(program)
 	}
-	vao.Uniforms.SetUpVao(program)
+	renderer.Uniforms.SetUpVao(program)
 
-	vao.unbind()
+	renderer.unbind()
 }
 
-func (vao *Vao) DeleteVao() {
-	vao.vao.Delete()
-	vao.vao = 0
+func (renderer *renderer) Delete() {
+	renderer.vao.Delete()
+	renderer.vao = 0
 }
 
 //-----------------------------------------------------------------------------
-type MeshDrawer interface {
-	DrawMesh([]glm.Matrix4)
-}
 
 type InstancedMesh struct {
-	Vao
+	renderer
 	Drawer InstancedDrawer
 }
 
@@ -97,7 +99,7 @@ func NewInstancedMesh(
 	return mesh
 }
 
-func (mesh *InstancedMesh) DrawMesh(locations []glm.Matrix4) {
+func (mesh *InstancedMesh) Render(locations []glm.Matrix4) {
 	if mesh == nil {
 		panic("drawing nil mesh")
 	}
@@ -105,7 +107,7 @@ func (mesh *InstancedMesh) DrawMesh(locations []glm.Matrix4) {
 		return
 	}
 	if mesh.vao == 0 {
-		mesh.setUp()
+		mesh.SetUp()
 	}
 	// This needs to go away soon.
 	program, err := mesh.programs.Serve(mesh.srefs)
@@ -131,7 +133,7 @@ func (mesh *InstancedMesh) DrawMesh(locations []glm.Matrix4) {
 
 //-----------------------------------------------------------------------------
 type UninstancedMesh struct {
-	Vao
+	renderer
 	Drawer UninstancedDrawer
 }
 
@@ -153,7 +155,7 @@ func NewUninstancedMesh(
 	return mesh
 }
 
-func (mesh *UninstancedMesh) DrawMesh(locations []glm.Matrix4) {
+func (mesh *UninstancedMesh) Render(locations []glm.Matrix4) {
 	if mesh == nil {
 		panic("drawing nil mesh")
 	}
@@ -161,7 +163,7 @@ func (mesh *UninstancedMesh) DrawMesh(locations []glm.Matrix4) {
 		return
 	}
 	if mesh.vao == 0 {
-		mesh.setUp()
+		mesh.SetUp()
 	}
 	// This needs to go away soon.
 	program, err := mesh.programs.Serve(mesh.srefs)
