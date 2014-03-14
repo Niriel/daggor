@@ -267,53 +267,52 @@ func render(programState programState) {
 	clearBatch.Run()
 	clearBatch.Exit()
 
-	view, viewI := viewMatrix(position)
-	programState.Gl.context.SetCameraViewI(viewI)
+	worldToEye, eyeToWorld := viewMatrix(position)
+	programState.Gl.context.SetCameraViewI(eyeToWorld)
 
 	// Gather all the meshes to render in a map, with all the positions
 	// for each meshes.
-	meshesPositions := make(map[world.ModelId][]glm.Matrix4)
+	rendererPositions := make(map[world.ModelId][]glm.Matrix4)
 
 	gatherBuildingsPositions(
-		meshesPositions,
+		rendererPositions,
 		programState.World.Level.Floors,
 		0, 0,
 		nil,
-		view,
+		worldToEye,
 	)
 	gatherBuildingsPositions(
-		meshesPositions,
+		rendererPositions,
 		programState.World.Level.Ceilings,
 		0, 0,
 		nil,
-		view,
+		worldToEye,
 	)
 	for i := 0; i < 4; i++ {
 		rot := glm.RotZ(180 + 90*float64(i))
 		gatherBuildingsPositions(
-			meshesPositions,
+			rendererPositions,
 			programState.World.Level.Walls[i],
 			0, 0,
 			&rot,
-			view,
+			worldToEye,
 		)
 	}
-	// Finally draw all the meshes.
-	for modelID, pos := range meshesPos {
-		mesh := programState.Gl.Shapes[modelID]
-		mesh.Render(pos)
+	// Finally render all the things.
+	for rendererID, pos := range rendererPositions {
+		programState.Gl.Shapes[rendererID].Render(pos)
 	}
 }
 
 func gatherBuildingsPositions(
-	meshesPos map[world.ModelId][]glm.Matrix4,
+	rendererPositions map[world.ModelId][]glm.Matrix4,
 	buildings world.Buildings,
 	offsetX, offsetY float64,
 	defaultR *glm.Matrix4, // Can be nil.
-	view glm.Matrix4,
+	worldToEye glm.Matrix4,
 ) {
 	for coords, building := range buildings {
-		m := glm.Vector3{
+		position := glm.Vector3{
 			float64(coords.X) + offsetX,
 			float64(coords.Y) + offsetY,
 			0,
@@ -322,16 +321,16 @@ func gatherBuildingsPositions(
 		if ok {
 			// We obey the facing of the buildings that have one.
 			r := glm.RotZ(float64(90 * facer.Facing().Value()))
-			m = m.Mult(r)
+			position = position.Mult(r)
 		} else {
 			// Buildings without facing receive the provided default facing.
 			// It is given as a precalculated rotation matrix `defaultR`.
-			m = m.Mult(*defaultR)
+			position = position.Mult(*defaultR)
 		}
-		m = view.Mult(m) // Shaders work in view space.
-		modelID := building.Model()
-		meshPositions := meshesPos[modelID]
-		meshPositions = append(meshPositions, m)
-		meshesPos[modelID] = meshPositions
+		position = worldToEye.Mult(position) // Shaders work in view space.
+		rendererID := building.Model()
+		positions := rendererPositions[rendererID]
+		positions = append(positions, position)
+		rendererPositions[rendererID] = positions
 	}
 }
