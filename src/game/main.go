@@ -11,6 +11,7 @@ import (
 	"ia"
 	"runtime"
 	"sculpt"
+	"sort"
 	"time"
 	"world"
 )
@@ -243,6 +244,31 @@ func runAI(w world.World, playerAction ia.Action) world.World {
 	return w
 }
 
+//=============================================================================
+
+// Positions holds model-to-eye matrices.
+// Positions satisfies sort.Interface, sorting from closest to farthest.
+type Positions []glm.Matrix4
+
+// Len is required by sort.Interface.
+func (positions Positions) Len() int {
+	return len(positions)
+}
+
+// Less is required by sort.Interface.
+func (positions Positions) Less(i, j int) bool {
+	ix, iy := positions[i][12], positions[i][13]
+	jx, jy := positions[j][12], positions[j][13]
+	id := ix*ix + iy*iy
+	jd := jx*jx + jy*jy
+	return id < jd
+}
+
+// Swap is required by sort.Interface.
+func (positions Positions) Swap(i, j int) {
+	positions[i], positions[j] = positions[j], positions[i]
+}
+
 func render(programState programState) {
 	clearBatch := batch.MakeClearBatch(
 		gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT,
@@ -270,19 +296,19 @@ func render(programState programState) {
 	worldToEye, eyeToWorld := viewMatrix(position)
 	programState.Gl.context.SetCameraViewI(eyeToWorld)
 
-	// Gather all the meshes to render in a map, with all the positions
-	// for each meshes.
-	rendererPositions := make(map[world.ModelId][]glm.Matrix4)
+	//
+	verticalPositions := make(map[world.ModelId]Positions)
+	horizontalPositions := make(map[world.ModelId]Positions)
 
 	gatherBuildingsPositions(
-		rendererPositions,
+		horizontalPositions,
 		programState.World.Level.Floors,
 		0, 0,
 		nil,
 		worldToEye,
 	)
 	gatherBuildingsPositions(
-		rendererPositions,
+		horizontalPositions,
 		programState.World.Level.Ceilings,
 		0, 0,
 		nil,
@@ -291,7 +317,7 @@ func render(programState programState) {
 	for i := 0; i < 4; i++ {
 		rot := glm.RotZ(180 + 90*float64(i))
 		gatherBuildingsPositions(
-			rendererPositions,
+			verticalPositions,
 			programState.World.Level.Walls[i],
 			0, 0,
 			&rot,
@@ -299,13 +325,20 @@ func render(programState programState) {
 		)
 	}
 	// Finally render all the things.
-	for rendererID, pos := range rendererPositions {
+	// Reduce fill rate by drawing the closest objects first and making use of
+	// the depth test to cull fragments before expensive lightings computations.
+	for rendererID, pos := range verticalPositions {
+		sort.Sort(pos)
+		programState.Gl.Shapes[rendererID].Render(pos)
+	}
+	for rendererID, pos := range horizontalPositions {
+		sort.Sort(pos)
 		programState.Gl.Shapes[rendererID].Render(pos)
 	}
 }
 
 func gatherBuildingsPositions(
-	rendererPositions map[world.ModelId][]glm.Matrix4,
+	rendererPositions map[world.ModelId]Positions,
 	buildings world.Buildings,
 	offsetX, offsetY float64,
 	defaultR *glm.Matrix4, // Can be nil.
