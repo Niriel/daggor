@@ -36,10 +36,11 @@ const (
 )
 
 func viewMatrix(pos world.Position) (glm.Matrix4, glm.Matrix4) {
+	const eyeZ = .5
 	Rd := glm.RotZ(float64(-90 * pos.F.Value()))
-	Td := glm.Vector3{float64(-pos.X), float64(-pos.Y), -.5}.Translation()
+	Td := glm.Vector3{float64(-pos.X), float64(-pos.Y), -eyeZ}.Translation()
 	Ri := glm.RotZ(float64(90 * pos.F.Value()))
-	Ti := glm.Vector3{float64(pos.X), float64(pos.Y), .5}.Translation()
+	Ti := glm.Vector3{float64(pos.X), float64(pos.Y), eyeZ}.Translation()
 	Vd := Rd.Mult(Td) // Direct.
 	Vi := Ti.Mult(Ri) // Inverse.
 	return Vd, Vi
@@ -113,6 +114,8 @@ func main() {
 	//programState.Gl.Shapes[monsterID] = glw.Monster(programState.Gl.context.Programs, UniformBinding)
 	//programState.Gl.DynaPyramid = glw.DynaPyramid(programState.Gl.context.Programs)
 	programState.Gl.Shapes[floorID] = sculpt.FloorInstNorm(programState.Gl.context.Programs)
+	programState.Gl.Shapes[ceilingID] = sculpt.CeilingInstNorm(programState.Gl.context.Programs)
+	programState.Gl.Shapes[wallID] = sculpt.WallInstNorm(programState.Gl.context.Programs)
 
 	// I do not like the default reference frame of OpenGl.
 	// By default, we look in the direction -z, and y points up.
@@ -289,6 +292,23 @@ func render(programState programState) {
 		view,
 		programState.Gl,
 	)
+	renderBuildings(
+		programState.World.Level.Ceilings,
+		0, 0,
+		nil,
+		view,
+		programState.Gl,
+	)
+	for i := 0; i < 4; i++ {
+		rot := glm.RotZ(180 + 90*float64(i))
+		renderBuildings(
+			programState.World.Level.Walls[i],
+			0, 0,
+			&rot,
+			view,
+			programState.Gl,
+		)
+	}
 }
 
 func renderBuildings(
