@@ -105,14 +105,6 @@ func main() {
 
 	programState.Gl.context = glw.NewGlContext()
 
-	//programState.Gl.Shapes[cubeID] = glw.Cube(programState.Gl.context.Programs, UniformBinding)
-	//programState.Gl.Shapes[pyramidID] = glw.Pyramid(programState.Gl.context.Programs, UniformBinding)
-	//programState.Gl.Shapes[floorID] = glw.Floor(programState.Gl.context.Programs, UniformBinding)
-	//programState.Gl.Shapes[wallID] = glw.Wall(programState.Gl.context.Programs, UniformBinding)
-	//programState.Gl.Shapes[columnID] = glw.Column(programState.Gl.context.Programs, UniformBinding)
-	//programState.Gl.Shapes[ceilingID] = glw.Ceiling(programState.Gl.context.Programs, UniformBinding)
-	//programState.Gl.Shapes[monsterID] = glw.Monster(programState.Gl.context.Programs, UniformBinding)
-	//programState.Gl.DynaPyramid = glw.DynaPyramid(programState.Gl.context.Programs)
 	programState.Gl.Shapes[floorID] = sculpt.FloorInstNorm(programState.Gl.context.Programs)
 	programState.Gl.Shapes[ceilingID] = sculpt.CeilingInstNorm(programState.Gl.context.Programs)
 	programState.Gl.Shapes[wallID] = sculpt.WallInstNorm(programState.Gl.context.Programs)
@@ -133,17 +125,9 @@ func main() {
 	gl.Enable(gl.FRAMEBUFFER_SRGB)
 	gl.Enable(gl.DEPTH_TEST)
 	gl.Enable(gl.CULL_FACE)
-	gl.Enable(gl.TEXTURE_CUBE_MAP_SEAMLESS)
 	gl.CullFace(gl.BACK)
 	gl.FrontFace(gl.CCW)
-
-	//blah := make([]int32, 1)
-	//for _, thing := range []gl.GLenum{gl.UNIFORM_BUFFER_OFFSET_ALIGNMENT,
-	//	gl.UNIFORM_BLOCK_DATA_SIZE,
-	//} {
-	//	gl.GetIntegerv(thing, blah)
-	//	fmt.Println(blah)
-	//}
+	gl.Enable(gl.TEXTURE_CUBE_MAP_SEAMLESS)
 
 	glw.LoadSkybox()
 
@@ -285,40 +269,49 @@ func render(programState programState) {
 
 	view, viewI := viewMatrix(position)
 	programState.Gl.context.SetCameraViewI(viewI)
-	renderBuildings(
+
+	// Gather all the meshes to render in a map, with all the positions
+	// for each meshes.
+	meshesPositions := make(map[world.ModelId][]glm.Matrix4)
+
+	gatherBuildingsPositions(
+		meshesPositions,
 		programState.World.Level.Floors,
 		0, 0,
 		nil,
 		view,
-		programState.Gl,
 	)
-	renderBuildings(
+	gatherBuildingsPositions(
+		meshesPositions,
 		programState.World.Level.Ceilings,
 		0, 0,
 		nil,
 		view,
-		programState.Gl,
 	)
 	for i := 0; i < 4; i++ {
 		rot := glm.RotZ(180 + 90*float64(i))
-		renderBuildings(
+		gatherBuildingsPositions(
+			meshesPositions,
 			programState.World.Level.Walls[i],
 			0, 0,
 			&rot,
 			view,
-			programState.Gl,
 		)
+	}
+	// Finally draw all the meshes.
+	for modelID, pos := range meshesPos {
+		mesh := programState.Gl.Shapes[modelID]
+		mesh.Render(pos)
 	}
 }
 
-func renderBuildings(
+func gatherBuildingsPositions(
+	meshesPos map[world.ModelId][]glm.Matrix4,
 	buildings world.Buildings,
 	offsetX, offsetY float64,
 	defaultR *glm.Matrix4, // Can be nil.
 	view glm.Matrix4,
-	glState glState,
 ) {
-	locations := make(map[world.ModelId][]glm.Matrix4)
 	for coords, building := range buildings {
 		m := glm.Vector3{
 			float64(coords.X) + offsetX,
@@ -337,13 +330,8 @@ func renderBuildings(
 		}
 		m = view.Mult(m) // Shaders work in view space.
 		modelID := building.Model()
-		meshlocs := locations[modelID]
-		meshlocs = append(meshlocs, m)
-		locations[modelID] = meshlocs
-	}
-	//
-	for modelID, locs := range locations {
-		mesh := glState.Shapes[modelID]
-		mesh.Render(locs)
+		meshPositions := meshesPos[modelID]
+		meshPositions = append(meshPositions, m)
+		meshesPos[modelID] = meshPositions
 	}
 }
