@@ -99,7 +99,7 @@ func (buffer *baseBuffer) update(vertexdata interface{}) {
 		gl.BufferData(
 			buffer.target,
 			len(buffer.bufferdata),
-			&buffer.bufferdata[0],
+			buffer.bufferdata,
 			buffer.usage,
 		)
 		if err := CheckGlError(); err != nil {
@@ -112,7 +112,7 @@ func (buffer *baseBuffer) update(vertexdata interface{}) {
 			buffer.target,
 			0,
 			len(buffer.bufferdata),
-			&buffer.bufferdata[0],
+			buffer.bufferdata,
 		)
 		if err := CheckGlError(); err != nil {
 			err.Description = "gl.BufferSubData"

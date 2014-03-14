@@ -9,9 +9,13 @@ import (
 const CameraUboBindingPoint = 0
 
 type GlContext struct {
+	// Eye to clip.
 	cameraProj glm.Matrix4
-	cameraUbo  gl.Buffer
-	Programs   Programs
+	// Eye to world.
+	// This is useful to undo the View matrix when rendering environment maps.
+	cameraViewI glm.Matrix4
+	cameraUbo   gl.Buffer
+	Programs    Programs
 	// The Program in use.  Set by ProgramBatch.  Usable by uniform batches
 	// when they need to validate their inputs before a draw call.
 	Program gl.Program
@@ -32,7 +36,7 @@ func NewGlContext() *GlContext {
 
 	gl.BufferData(
 		gl.UNIFORM_BUFFER,
-		int(unsafe.Sizeof(gl.GLfloat(0))*16), // Two matrices of 16 floats.
+		int(unsafe.Sizeof(gl.GLfloat(0))*16*2), // Two matrices of 16 floats.
 		nil,
 		gl.STREAM_DRAW,
 	)
@@ -65,10 +69,20 @@ func (context *GlContext) CameraProj() glm.Matrix4 {
 	return context.cameraProj
 }
 
-func (context *GlContext) SetCameraProj(projMatrix glm.Matrix4) {
-	const projMatrixStartOffset = 0
-	context.cameraProj = projMatrix
-	context.updateMatrix(projMatrix, projMatrixStartOffset)
+func (context *GlContext) CameraViewI() glm.Matrix4 {
+	return context.cameraViewI
+}
+
+func (context *GlContext) SetCameraProj(matrix glm.Matrix4) {
+	const offset = 0 * 4
+	context.cameraProj = matrix
+	context.updateMatrix(matrix, offset)
+}
+
+func (context *GlContext) SetCameraViewI(matrix glm.Matrix4) {
+	const offset = 16 * 4
+	context.cameraViewI = matrix
+	context.updateMatrix(matrix, offset)
 }
 
 func (context *GlContext) updateMatrix(matrix glm.Matrix4, offset uintptr) {

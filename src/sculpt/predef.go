@@ -7,67 +7,37 @@ import (
 	"glw"
 )
 
-// Floor creates the mesh for a floor.
-// It makes no call to OpenGL whatsoever.
-// This can even be called before the context is created.
-func Floor(programs glw.Programs) glw.Renderer {
+func FloorInstNorm(programs glw.Programs) glw.Renderer {
 	const p = .5 // Plus sign.
 	const m = -p // Minus sign.
 
-	srefs := glw.ShaderRefs{glw.VSH_COL3, glw.FSH_VCOL}
-
-	vertexData := []glw.VertexXyzRgb{
-		// x y z r v b
-		glw.VertexXyzRgb{m, m, 0, .1, .1, .5},
-		glw.VertexXyzRgb{m, p, 0, .1, .1, .5},
-		glw.VertexXyzRgb{p, m, 0, 0, 1, 0},
-		glw.VertexXyzRgb{p, p, 0, 1, 0, 0},
+	srefs := glw.ShaderRefs{
+		glw.VSH_NOR_UV_INSTANCED,
+		glw.FSH_NOR_UV,
 	}
-	vertices := glw.NewVerticesXyzRgb(gl.STATIC_DRAW)
+
+	vertexData := []glw.VertexXyzNorUv{
+		// position xyz, normal xyz, uv
+		glw.VertexXyzNorUv{m, m, 0, m, m, 0, 0, 0},
+		glw.VertexXyzNorUv{m, p, 0, m, p, 0, 0, 1},
+		glw.VertexXyzNorUv{p, m, 0, p, m, 0, 1, 0},
+		glw.VertexXyzNorUv{p, p, 0, p, p, 0, 1, 1},
+		glw.VertexXyzNorUv{m * .75, m * .75, 0, 0, 0, 1, .5, .5},
+		glw.VertexXyzNorUv{m * .75, m * .75, 0, 0, 0, -1, .5, .5},
+	}
+	vertices := glw.NewVerticesXyzNorUv(gl.STATIC_DRAW)
 	vertices.SetData(vertexData)
 
-	elementData := []gl.GLubyte{0, 2, 1, 3}
-	elements := glw.NewElementsUbyte(gl.STATIC_DRAW)
-	elements.SetData(elementData)
-
-	uniforms := new(glw.UniformsLoc)
-
-	drawer := glw.MakeDrawElement(
-		gl.TRIANGLE_STRIP,
-		len(elementData),
-		gl.UNSIGNED_BYTE,
-	)
-
-	return glw.NewUninstancedMesh(
-		programs,
-		srefs,
-		vertices,
-		elements,
-		uniforms,
-		&drawer,
-	)
-}
-
-// Floor creates the mesh for a floor.
-// It makes no call to OpenGL whatsoever.
-// This can even be called before the context is created.
-func FloorInst(programs glw.Programs) glw.Renderer {
-	const p = .5 // Plus sign.
-	const m = -p // Minus sign.
-
-	srefs := glw.ShaderRefs{glw.VSH_COL3_INSTANCED, glw.FSH_VCOL}
-
-	vertexData := []glw.VertexXyzRgb{
-		// x y z r v b
-		glw.VertexXyzRgb{m, m, 0, .1, .1, .5},
-		glw.VertexXyzRgb{m, p, 0, .1, .1, .5},
-		glw.VertexXyzRgb{p, m, 0, 0, 1, 0},
-		glw.VertexXyzRgb{p, p, 0, 1, 0, 0},
+	elementData := []gl.GLubyte{
+		0, 2, 4,
+		2, 3, 4,
+		3, 1, 4,
+		1, 0, 4,
+		2, 0, 5,
+		3, 2, 5,
+		1, 3, 5,
+		0, 1, 5,
 	}
-	vertices := glw.NewVerticesXyzRgb(gl.STATIC_DRAW)
-	vertices.SetData(vertexData)
-
-	elementData := []gl.GLubyte{0, 2, 1, 3}
 	elements := glw.NewElementsUbyte(gl.STATIC_DRAW)
 	elements.SetData(elementData)
 
@@ -76,7 +46,7 @@ func FloorInst(programs glw.Programs) glw.Renderer {
 	uniforms := new(glw.UniformsLocInstanced)
 
 	drawer := glw.MakeDrawElementInstanced(
-		gl.TRIANGLE_STRIP,
+		gl.TRIANGLES,
 		len(elementData),
 		gl.UNSIGNED_BYTE,
 	)

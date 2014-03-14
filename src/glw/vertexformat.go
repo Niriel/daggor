@@ -10,19 +10,47 @@ import (
 //=============================================================================
 
 // This section defines the various vertex formats used in the game.
-// It is at the level of a single vertex, not a collection of buffer.
+// It is at the level of a single vertex, not a collection of vertices.
 
-// VertexXyz defines buffer that have a location and nothing else.
+// VertexXyz defines vertices that have a location and nothing else.
 // No color, UV or any other parameter.
 type VertexXyz struct {
 	X, Y, Z gl.GLfloat
 }
 
-// VertexXyzRgb defines buffer that have a location and a color.
+// VertexXyzRgb defines vertices that have a location and a color.
 // No UV information.  Note that there is no Alpha component to the color.
 type VertexXyzRgb struct {
 	X, Y, Z gl.GLfloat
 	R, G, B gl.GLfloat
+}
+
+// VertexXyzNor defines vertices that have a position and a normal.
+// It would be nice to compress the normals in a gl_int_2_10_10_10 once I figure
+// out how to do it.  The signs confuse me, as well as the fact that if
+// normalized then no value seems to be able to represent 0.
+type VertexXyzNor struct {
+	Px, Py, Pz gl.GLfloat
+	Nx, Ny, Nz gl.GLfloat
+}
+
+func MakeVertexXyzNor(pos, nor glm.Vector3) VertexXyzNor {
+	px64, py64, pz64 := pos.Xyz()
+	nx64, ny64, nz64 := nor.Xyz()
+	return VertexXyzNor{
+		Px: gl.GLfloat(px64),
+		Py: gl.GLfloat(py64),
+		Pz: gl.GLfloat(pz64),
+		Nx: gl.GLfloat(nx64),
+		Ny: gl.GLfloat(ny64),
+		Nz: gl.GLfloat(nz64),
+	}
+}
+
+type VertexXyzNorUv struct {
+	Px, Py, Pz gl.GLfloat
+	Nx, Ny, Nz gl.GLfloat
+	U, V       gl.GLfloat
 }
 
 // ModelMatInstance defines transformation matrices for instanced rendering.
@@ -47,6 +75,16 @@ type VerticesXyzRgb struct {
 	data []VertexXyzRgb
 }
 
+type VerticesXyzNor struct {
+	baseBuffer
+	data []VertexXyzNor
+}
+
+type VerticesXyzNorUv struct {
+	baseBuffer
+	data []VertexXyzNorUv
+}
+
 type ModelMatInstances struct {
 	baseBuffer
 	data []ModelMatInstance
@@ -60,6 +98,18 @@ func NewVerticesXyz(usage gl.GLenum) *VerticesXyz {
 
 func NewVerticesXyzRgb(usage gl.GLenum) *VerticesXyzRgb {
 	buffer := new(VerticesXyzRgb)
+	buffer.gen(gl.ARRAY_BUFFER, usage)
+	return buffer
+}
+
+func NewVerticesXyzNor(usage gl.GLenum) *VerticesXyzNor {
+	buffer := new(VerticesXyzNor)
+	buffer.gen(gl.ARRAY_BUFFER, usage)
+	return buffer
+}
+
+func NewVerticesXyzNorUv(usage gl.GLenum) *VerticesXyzNorUv {
+	buffer := new(VerticesXyzNorUv)
 	buffer.gen(gl.ARRAY_BUFFER, usage)
 	return buffer
 }
@@ -88,6 +138,18 @@ func (buffer *VerticesXyzRgb) SetData(vd []VertexXyzRgb) {
 	buffer.bufferdataClean = false
 }
 
+func (buffer *VerticesXyzNor) SetData(vd []VertexXyzNor) {
+	buffer.data = make([]VertexXyzNor, len(vd), len(vd))
+	copy(buffer.data, vd)
+	buffer.bufferdataClean = false
+}
+
+func (buffer *VerticesXyzNorUv) SetData(vd []VertexXyzNorUv) {
+	buffer.data = make([]VertexXyzNorUv, len(vd), len(vd))
+	copy(buffer.data, vd)
+	buffer.bufferdataClean = false
+}
+
 func (buffer *ModelMatInstances) SetLocationData(locations []glm.Matrix4) {
 	buffer.data = make([]ModelMatInstance, len(locations), len(locations))
 	for i, m := range locations {
@@ -101,6 +163,14 @@ func (buffer *VerticesXyz) Update() {
 }
 
 func (buffer *VerticesXyzRgb) Update() {
+	buffer.update(buffer.data)
+}
+
+func (buffer *VerticesXyzNor) Update() {
+	buffer.update(buffer.data)
+}
+
+func (buffer *VerticesXyzNorUv) Update() {
 	buffer.update(buffer.data)
 }
 
@@ -124,6 +194,12 @@ func (buffer *VerticesXyz) SetUpVao(program gl.Program) {
 	bufferSetUpVao(buffer, program)
 }
 func (buffer *VerticesXyzRgb) SetUpVao(program gl.Program) {
+	bufferSetUpVao(buffer, program)
+}
+func (buffer *VerticesXyzNor) SetUpVao(program gl.Program) {
+	bufferSetUpVao(buffer, program)
+}
+func (buffer *VerticesXyzNorUv) SetUpVao(program gl.Program) {
 	bufferSetUpVao(buffer, program)
 }
 func (buffer *ModelMatInstances) SetUpVao(program gl.Program) {
@@ -165,8 +241,14 @@ func (buffer *VerticesXyz) names() []string {
 func (buffer *VerticesXyzRgb) names() []string {
 	return []string{"vpos", "vcol"}
 }
+func (buffer *VerticesXyzNor) names() []string {
+	return []string{"vpos", "vnor"}
+}
+func (buffer *VerticesXyzNorUv) names() []string {
+	return []string{"vpos", "vnor", "vuv"}
+}
 func (buffer *ModelMatInstances) names() []string {
-	return []string{"view_matrix"}
+	return []string{"model_to_eye"}
 }
 
 func (buffer *VerticesXyz) attribPointers(atts []gl.AttribLocation) {
@@ -205,6 +287,68 @@ func (buffer *VerticesXyzRgb) attribPointers(atts []gl.AttribLocation) {
 	atts[1].AttribPointer(NB_COLORS, gl.FLOAT, false, TOTAL_SIZE, COLORS_OFS)
 	if err := CheckGlError(); err != nil {
 		err.Description = "VerticesXyzRgb atts[1].AttribPointer"
+		panic(err)
+	}
+	for _, att := range atts {
+		att.EnableArray()
+		if err := CheckGlError(); err != nil {
+			err.Description = fmt.Sprintf("atts[%v].EnableArray()\n", att)
+			panic(err)
+		}
+	}
+}
+func (buffer *VerticesXyzNor) attribPointers(atts []gl.AttribLocation) {
+	const FLOATSIZE = unsafe.Sizeof(gl.GLfloat(0))
+	const NB_POS = 3 // px py and pz.
+	const NB_NOR = 3 // nx ny and nz.
+	const POS_SIZE = NB_POS * FLOATSIZE
+	const NOR_SIZE = NB_NOR * FLOATSIZE
+	const POS_OFS = uintptr(0)
+	const NOR_OFS = uintptr(POS_SIZE)
+	const TOTAL_SIZE = int(POS_SIZE + NOR_SIZE)
+	atts[0].AttribPointer(NB_POS, gl.FLOAT, false, TOTAL_SIZE, POS_OFS)
+	if err := CheckGlError(); err != nil {
+		err.Description = "VerticesXyzNor atts[0].AttribPointer"
+		panic(err)
+	}
+	atts[1].AttribPointer(NB_NOR, gl.FLOAT, false, TOTAL_SIZE, NOR_OFS)
+	if err := CheckGlError(); err != nil {
+		err.Description = "VerticesXyzNor atts[1].AttribPointer"
+		panic(err)
+	}
+	for _, att := range atts {
+		att.EnableArray()
+		if err := CheckGlError(); err != nil {
+			err.Description = fmt.Sprintf("atts[%v].EnableArray()\n", att)
+			panic(err)
+		}
+	}
+}
+func (buffer *VerticesXyzNorUv) attribPointers(atts []gl.AttribLocation) {
+	const FLOATSIZE = unsafe.Sizeof(gl.GLfloat(0))
+	const NB_POS = 3 // px py and pz.
+	const NB_NOR = 3 // nx ny and nz.
+	const NB_UV = 2  // u and v.
+	const POS_SIZE = NB_POS * FLOATSIZE
+	const NOR_SIZE = NB_NOR * FLOATSIZE
+	const UV_SIZE = NB_UV * FLOATSIZE
+	const POS_OFS = uintptr(0)
+	const NOR_OFS = uintptr(POS_SIZE)
+	const UV_OFS = uintptr(POS_SIZE + NOR_SIZE)
+	const TOTAL_SIZE = int(POS_SIZE + NOR_SIZE + UV_SIZE)
+	atts[0].AttribPointer(NB_POS, gl.FLOAT, false, TOTAL_SIZE, POS_OFS)
+	if err := CheckGlError(); err != nil {
+		err.Description = "VerticesXyzNorUv atts[0].AttribPointer"
+		panic(err)
+	}
+	atts[1].AttribPointer(NB_NOR, gl.FLOAT, false, TOTAL_SIZE, NOR_OFS)
+	if err := CheckGlError(); err != nil {
+		err.Description = "VerticesXyzNorUv atts[1].AttribPointer"
+		panic(err)
+	}
+	atts[2].AttribPointer(NB_UV, gl.FLOAT, false, TOTAL_SIZE, UV_OFS)
+	if err := CheckGlError(); err != nil {
+		err.Description = "VerticesXyzNorUv atts[2].AttribPointer"
 		panic(err)
 	}
 	for _, att := range atts {

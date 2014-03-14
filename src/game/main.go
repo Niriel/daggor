@@ -35,10 +35,14 @@ const (
 	monsterID
 )
 
-func viewMatrix(pos world.Position) glm.Matrix4 {
-	R := glm.RotZ(float64(-90 * pos.F.Value()))
-	T := glm.Vector3{float64(-pos.X), float64(-pos.Y), -.5}.Translation()
-	return R.Mult(T)
+func viewMatrix(pos world.Position) (glm.Matrix4, glm.Matrix4) {
+	Rd := glm.RotZ(float64(-90 * pos.F.Value()))
+	Td := glm.Vector3{float64(-pos.X), float64(-pos.Y), -.5}.Translation()
+	Ri := glm.RotZ(float64(90 * pos.F.Value()))
+	Ti := glm.Vector3{float64(pos.X), float64(pos.Y), .5}.Translation()
+	Vd := Rd.Mult(Td) // Direct.
+	Vi := Ti.Mult(Ri) // Inverse.
+	return Vd, Vi
 }
 
 type glState struct {
@@ -108,7 +112,7 @@ func main() {
 	//programState.Gl.Shapes[ceilingID] = glw.Ceiling(programState.Gl.context.Programs, UniformBinding)
 	//programState.Gl.Shapes[monsterID] = glw.Monster(programState.Gl.context.Programs, UniformBinding)
 	//programState.Gl.DynaPyramid = glw.DynaPyramid(programState.Gl.context.Programs)
-	programState.Gl.Shapes[floorID] = sculpt.FloorInst(programState.Gl.context.Programs)
+	programState.Gl.Shapes[floorID] = sculpt.FloorInstNorm(programState.Gl.context.Programs)
 
 	// I do not like the default reference frame of OpenGl.
 	// By default, we look in the direction -z, and y points up.
@@ -126,6 +130,7 @@ func main() {
 	gl.Enable(gl.FRAMEBUFFER_SRGB)
 	gl.Enable(gl.DEPTH_TEST)
 	gl.Enable(gl.CULL_FACE)
+	gl.Enable(gl.TEXTURE_CUBE_MAP_SEAMLESS)
 	gl.CullFace(gl.BACK)
 	gl.FrontFace(gl.CCW)
 
@@ -136,6 +141,8 @@ func main() {
 	//	gl.GetIntegerv(thing, blah)
 	//	fmt.Println(blah)
 	//}
+
+	glw.LoadSkybox()
 
 	programState.World = world.MakeWorld()
 	mainLoop(programState)
@@ -273,7 +280,8 @@ func render(programState programState) {
 	clearBatch.Run()
 	clearBatch.Exit()
 
-	view := viewMatrix(position)
+	view, viewI := viewMatrix(position)
+	programState.Gl.context.SetCameraViewI(viewI)
 	renderBuildings(
 		programState.World.Level.Floors,
 		0, 0,

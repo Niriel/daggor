@@ -30,7 +30,7 @@ type UniformsLoc struct {
 }
 
 func (unif *UniformsLoc) SetUpVao(program gl.Program) {
-	const modelLocName = "view_matrix"
+	const modelLocName = "model_to_eye"
 	const matricesUbiName = "GlobalMatrices"
 
 	// The Model transformation matrix.
@@ -84,6 +84,7 @@ func (unif *UniformsLoc) SetGl() {
 
 type UniformsLocInstanced struct {
 	globalMatricesUbi gl.UniformBlockIndex
+	textureLoc        gl.UniformLocation
 }
 
 func (unif *UniformsLocInstanced) SetUpVao(program gl.Program) {
@@ -99,6 +100,15 @@ func (unif *UniformsLocInstanced) SetUpVao(program gl.Program) {
 		panic(fmt.Sprintf("GetUniformBlockIndex(%#v) returned INVALID_INDEX", matricesUbiName))
 	}
 
+	unif.textureLoc = program.GetUniformLocation("environment_map")
+	if err := CheckGlError(); err != nil {
+		err.Description = "GetUniformLocation(environment)"
+		panic(err)
+	}
+	if unif.textureLoc == -1 {
+		panic("environment uniform not found")
+	}
+
 	program.UniformBlockBinding(
 		unif.globalMatricesUbi,
 		CameraUboBindingPoint)
@@ -109,4 +119,22 @@ func (unif *UniformsLocInstanced) SetUpVao(program gl.Program) {
 }
 
 func (unif *UniformsLocInstanced) SetLocation(location glm.Matrix4) {}
-func (unif *UniformsLocInstanced) SetGl()                           {}
+func (unif *UniformsLocInstanced) SetGl() {
+	gl.ActiveTexture(gl.TEXTURE0)
+	if err := CheckGlError(); err != nil {
+		err.Description = "gl.ActiveTexture(gl.TEXTURE0)"
+		panic(err)
+	}
+
+	globaltexture.Bind(gl.TEXTURE_CUBE_MAP)
+	if err := CheckGlError(); err != nil {
+		err.Description = "gl.Texture(1).Bind(gl.TEXTURE_CUBE_MAP)"
+		panic(err)
+	}
+
+	unif.textureLoc.Uniform1i(0)
+	if err := CheckGlError(); err != nil {
+		err.Description = "unif.textureloc.Uniform1i(0)"
+		panic(err)
+	}
+}

@@ -19,12 +19,8 @@ const (
 )
 
 const (
-	VSH_POS3 = ShaderRef(iota)
-	VSH_COL3
-	VSH_COL3_INSTANCED
-	FSH_ZRED
-	FSH_ZGREEN
-	FSH_VCOL
+	VSH_NOR_UV_INSTANCED = ShaderRef(iota)
+	FSH_NOR_UV
 )
 
 // Programs are uniquely identified by their shaders.  I need to be able to sort
