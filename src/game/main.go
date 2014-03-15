@@ -96,11 +96,14 @@ func main() {
 		err.Description = "OpenGL has this error right after init for some reason."
 		//fmt.Println(err)
 	}
-	major := programState.Gl.Window.GetAttribute(glfw.ContextVersionMajor)
-	minor := programState.Gl.Window.GetAttribute(glfw.ContextVersionMinor)
-	fmt.Printf("OpenGL version %v.%v.\n", major, minor)
-	if (major < 3) || (major == 3 && minor < 3) {
-		panic("OpenGL version 3.3 required, your video card/driver does not seem to support it.")
+	{
+		// Assert OpenGL >= 3.3.
+		major := programState.Gl.Window.GetAttribute(glfw.ContextVersionMajor)
+		minor := programState.Gl.Window.GetAttribute(glfw.ContextVersionMinor)
+		fmt.Printf("OpenGL version %v.%v.\n", major, minor)
+		if (major < 3) || (major == 3 && minor < 3) {
+			panic("OpenGL version 3.3 required, your video card/driver does not seem to support it.")
+		}
 	}
 
 	programState.Gl.context = glw.NewGlContext()
@@ -109,19 +112,20 @@ func main() {
 	programState.Gl.Shapes[ceilingID] = sculpt.CeilingInstNorm(programState.Gl.context.Programs)
 	programState.Gl.Shapes[wallID] = sculpt.WallInstNorm(programState.Gl.context.Programs)
 
-	// I do not like the default reference frame of OpenGl.
-	// By default, we look in the direction -z, and y points up.
-	// I want z to point up, and I want to look in the direction +x
-	// by default.  That way, I move on an xy plane where z is the
-	// altitude, instead of having the altitude stuffed between
-	// the two things I use the most.  And my reason for pointing
-	// toward +x is that I use the convention for trigonometry:
-	// an angle of 0 points to the right (east) of the trigonometric
-	// circle.  Bonus point: this matches Blender's reference frame.
-	myFrame := glm.ZUP.Mult(glm.RotZ(90))
-	projectionMatrix := glm.PerspectiveProj(110, 640./480., .1, 100).Mult(myFrame)
-	programState.Gl.context.SetCameraProj(projectionMatrix)
-
+	{
+		// I do not like the default reference frame of OpenGl.
+		// By default, we look in the direction -z, and y points up.
+		// I want z to point up, and I want to look in the direction +x
+		// by default.  That way, I move on an xy plane where z is the
+		// altitude, instead of having the altitude stuffed between
+		// the two things I use the most.  And my reason for pointing
+		// toward +x is that I use the convention for trigonometry:
+		// an angle of 0 points to the right (east) of the trigonometric
+		// circle.  Bonus point: this matches Blender's reference frame.
+		myFrame := glm.ZUP.Mult(glm.RotZ(90))
+		eye_to_clip := glm.PerspectiveProj(110, 640./480., .1, 100).Mult(myFrame)
+		programState.Gl.context.SetEyeToClp(eye_to_clip)
+	}
 	gl.Enable(gl.FRAMEBUFFER_SRGB)
 	gl.Enable(gl.DEPTH_TEST)
 	gl.Enable(gl.CULL_FACE)
@@ -129,6 +133,7 @@ func main() {
 	gl.FrontFace(gl.CCW)
 	gl.Enable(gl.TEXTURE_CUBE_MAP_SEAMLESS)
 
+	// This needs a texture server attached to the context, like for programs.
 	glw.LoadSkybox()
 
 	programState.World = world.MakeWorld()
@@ -275,7 +280,7 @@ func render(programState programState) {
 		panic("Could not find player's character position.")
 	}
 	worldToEye, eyeToWorld := viewMatrix(position)
-	programState.Gl.context.SetCameraViewI(eyeToWorld)
+	programState.Gl.context.SetEyeToWld(eyeToWorld)
 	programState.Gl.context.UpdateCamera()
 
 	verticalPositions := make(map[world.ModelId]Positions)

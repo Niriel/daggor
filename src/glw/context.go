@@ -25,11 +25,11 @@ func NewGlContext() *GlContext {
 	}
 }
 
-func (context *GlContext) SetCameraProj(matrix glm.Matrix4) {
+func (context *GlContext) SetEyeToClp(matrix glm.Matrix4) {
 	context.cameraBuffer.SetEyeToClp(matrix)
 }
 
-func (context *GlContext) SetCameraViewI(matrix glm.Matrix4) {
+func (context *GlContext) SetEyeToWld(matrix glm.Matrix4) {
 	context.cameraBuffer.SetEyeToWld(matrix)
 }
 
