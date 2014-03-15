@@ -33,8 +33,6 @@ func (unif *UniformsLoc) SetUp(program gl.Program) {
 	const modelLocName = "model_to_eye"
 	const matricesUbiName = "GlobalMatrices"
 
-	// The Model transformation matrix.
-	// Soon to be replaced by a ModelView, as this reduces rounding errors.
 	unif.modelLoc = program.GetUniformLocation(modelLocName)
 	if err := CheckGlError(); err != nil {
 		err.Description = fmt.Sprintf("program.GetUniformLocation(%#v)", modelLocName)
@@ -44,7 +42,6 @@ func (unif *UniformsLoc) SetUp(program gl.Program) {
 		panic(fmt.Sprintf("uniform %#v not found", modelLocName))
 	}
 
-	// Uniform Block for the View and Projection matrices.
 	unif.globalMatricesUbi = program.GetUniformBlockIndex(matricesUbiName)
 	if err := CheckGlError(); err != nil {
 		err.Description = fmt.Sprintf("GetUniformBlockIndex(%#v)", matricesUbiName)
@@ -53,10 +50,7 @@ func (unif *UniformsLoc) SetUp(program gl.Program) {
 	if unif.globalMatricesUbi == gl.INVALID_INDEX {
 		panic(fmt.Sprintf("GetUniformBlockIndex(%#v) returned INVALID_INDEX", matricesUbiName))
 	}
-
-	program.UniformBlockBinding(
-		unif.globalMatricesUbi,
-		CameraUboBindingPoint)
+	program.UniformBlockBinding(unif.globalMatricesUbi, CameraUboBindingPoint)
 	if err := CheckGlError(); err != nil {
 		err.Description = "UniformBlockBinding"
 		panic(err)
@@ -90,7 +84,6 @@ type UniformsLocInstanced struct {
 func (unif *UniformsLocInstanced) SetUp(program gl.Program) {
 	const matricesUbiName = "GlobalMatrices"
 
-	// Uniform Block for the View and Projection matrices.
 	unif.globalMatricesUbi = program.GetUniformBlockIndex(matricesUbiName)
 	if err := CheckGlError(); err != nil {
 		err.Description = fmt.Sprintf("GetUniformBlockIndex(%#v)", matricesUbiName)
@@ -100,6 +93,12 @@ func (unif *UniformsLocInstanced) SetUp(program gl.Program) {
 		panic(fmt.Sprintf("GetUniformBlockIndex(%#v) returned INVALID_INDEX", matricesUbiName))
 	}
 
+	program.UniformBlockBinding(unif.globalMatricesUbi, CameraUboBindingPoint)
+	if err := CheckGlError(); err != nil {
+		err.Description = "UniformBlockBinding"
+		panic(err)
+	}
+
 	unif.textureLoc = program.GetUniformLocation("environment_map")
 	if err := CheckGlError(); err != nil {
 		err.Description = "GetUniformLocation(environment)"
@@ -107,14 +106,6 @@ func (unif *UniformsLocInstanced) SetUp(program gl.Program) {
 	}
 	if unif.textureLoc == -1 {
 		panic("environment uniform not found")
-	}
-
-	program.UniformBlockBinding(
-		unif.globalMatricesUbi,
-		CameraUboBindingPoint)
-	if err := CheckGlError(); err != nil {
-		err.Description = "UniformBlockBinding"
-		panic(err)
 	}
 }
 
