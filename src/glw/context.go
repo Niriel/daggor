@@ -3,96 +3,36 @@ package glw
 import (
 	"github.com/go-gl/gl"
 	"glm"
-	"unsafe"
 )
 
 const CameraUboBindingPoint = 0
 
 type GlContext struct {
-	// Eye to clip.
-	cameraProj glm.Matrix4
-	// Eye to world.
-	// This is useful to undo the View matrix when rendering environment maps.
-	cameraViewI glm.Matrix4
-	cameraUbo   gl.Buffer
-	Programs    Programs
+	cameraBuffer *CameraBuffer
+	Programs     Programs
 	// The Program in use.  Set by ProgramBatch.  Usable by uniform batches
 	// when they need to validate their inputs before a draw call.
 	Program gl.Program
 }
 
 func NewGlContext() *GlContext {
-	cameraUbo := gl.GenBuffer()
-	if err := CheckGlError(); err != nil {
-		err.Description = "cameraUbo := gl.GenBuffer()"
-		panic(err)
-	}
-
-	cameraUbo.Bind(gl.UNIFORM_BUFFER)
-	if err := CheckGlError(); err != nil {
-		err.Description = "cameraUbo.Bind(gl.UNIFORM_BUFFER)"
-		panic(err)
-	}
-
-	gl.BufferData(
-		gl.UNIFORM_BUFFER,
-		int(unsafe.Sizeof(gl.GLfloat(0))*16*2), // Two matrices of 16 floats.
-		nil,
-		gl.STREAM_DRAW,
-	)
-	if err := CheckGlError(); err != nil {
-		err.Description = "gl.BufferData(...) for camera UBO"
-		panic(err)
-	}
-
-	cameraUbo.BindBufferBase(gl.UNIFORM_BUFFER, CameraUboBindingPoint)
-	if err := CheckGlError(); err != nil {
-		err.Description = "cameraUbo.BindBufferBase"
-		panic(err)
-	}
-
-	cameraUbo.Unbind(gl.UNIFORM_BUFFER)
-	if err := CheckGlError(); err != nil {
-		err.Description = "cameraUbo.Unbind(gl.UNIFORM_BUFFER)"
-		panic(err)
-	}
-
 	programs := NewPrograms()
-
+	cameraBuffer := NewCameraBuffer(gl.STREAM_DRAW, CameraUboBindingPoint)
+	cameraBuffer.SetUp()
 	return &GlContext{
-		cameraUbo: cameraUbo,
-		Programs:  programs,
+		cameraBuffer: cameraBuffer,
+		Programs:     programs,
 	}
-}
-
-func (context *GlContext) CameraProj() glm.Matrix4 {
-	return context.cameraProj
-}
-
-func (context *GlContext) CameraViewI() glm.Matrix4 {
-	return context.cameraViewI
 }
 
 func (context *GlContext) SetCameraProj(matrix glm.Matrix4) {
-	const offset = 0 * 4
-	context.cameraProj = matrix
-	context.updateMatrix(matrix, offset)
+	context.cameraBuffer.SetEyeToClp(matrix)
 }
 
 func (context *GlContext) SetCameraViewI(matrix glm.Matrix4) {
-	const offset = 16 * 4
-	context.cameraViewI = matrix
-	context.updateMatrix(matrix, offset)
+	context.cameraBuffer.SetEyeToWld(matrix)
 }
 
-func (context *GlContext) updateMatrix(matrix glm.Matrix4, offset uintptr) {
-	glmatrix := matrix.Gl()
-	context.cameraUbo.Bind(gl.UNIFORM_BUFFER)
-	gl.BufferSubData(
-		gl.UNIFORM_BUFFER,
-		int(offset),
-		int(unsafe.Sizeof(glmatrix)),
-		&glmatrix,
-	)
-	context.cameraUbo.Unbind(gl.UNIFORM_BUFFER)
+func (context *GlContext) UpdateCamera() {
+	context.cameraBuffer.Update()
 }

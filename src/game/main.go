@@ -2,7 +2,6 @@
 package main
 
 import (
-	"batch"
 	"fmt"
 	"github.com/go-gl/gl"
 	glfw "github.com/go-gl/glfw3"
@@ -270,33 +269,15 @@ func (positions Positions) Swap(i, j int) {
 }
 
 func render(programState programState) {
-	clearBatch := batch.MakeClearBatch(
-		gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT,
-		[4]gl.GLclampf{0.0, 0.0, 0.4, 0.0},
-		1,
-	)
-
 	actorID := programState.World.Player_id
 	position, ok := programState.World.Level.ActorPosition(actorID)
 	if !ok {
 		panic("Could not find player's character position.")
 	}
-
-	camBatch := batch.MakeCameraBatch(
-		programState.Gl.context,
-		programState.Gl.context.CameraProj(),
-	)
-
-	clearBatch.Batches = append(clearBatch.Batches, camBatch)
-
-	clearBatch.Enter()
-	clearBatch.Run()
-	clearBatch.Exit()
-
 	worldToEye, eyeToWorld := viewMatrix(position)
 	programState.Gl.context.SetCameraViewI(eyeToWorld)
+	programState.Gl.context.UpdateCamera()
 
-	//
 	verticalPositions := make(map[world.ModelId]Positions)
 	horizontalPositions := make(map[world.ModelId]Positions)
 
@@ -327,6 +308,8 @@ func render(programState programState) {
 	// Finally render all the things.
 	// Reduce fill rate by drawing the closest objects first and making use of
 	// the depth test to cull fragments before expensive lightings computations.
+	gl.ClearColor(0.0, 0.0, 0.4, 0.0)
+	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	for rendererID, pos := range verticalPositions {
 		sort.Sort(pos)
 		programState.Gl.Shapes[rendererID].Render(pos)

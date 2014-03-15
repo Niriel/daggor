@@ -26,12 +26,17 @@ func NewCameraBuffer(usage gl.GLenum, bindingPoint uint) *CameraBuffer {
 	return buffer
 }
 
-// Satisfy the Buffer interface.
-
-func (buffer *CameraBuffer) SetUp(_ gl.Program) {
+func (buffer *CameraBuffer) SetUp() {
 	buffer.gen()
 	buffer.bind()
+	// BindBufferBase complains with Invalid_Value if the buffer has no data
+	// store.  So we create its datastore by calling Update().
+	buffer.Update()
 	buffer.name.BindBufferBase(buffer.target, buffer.bindingPoint)
+	if err := CheckGlError(); err != nil {
+		err.Description = "BindBufferBase"
+		panic(err)
+	}
 	buffer.unbind()
 }
 
@@ -42,8 +47,10 @@ func (buffer *CameraBuffer) Update() {
 // Data access.
 func (buffer *CameraBuffer) SetEyeToClp(matrix glm.Matrix4) {
 	buffer.data[cameraBufferEyeToClp] = matrix.Gl()
+	buffer.bufferdataClean = false
 }
 
 func (buffer *CameraBuffer) SetEyeToWld(matrix glm.Matrix4) {
 	buffer.data[cameraBufferEyeToWld] = matrix.Gl()
+	buffer.bufferdataClean = false
 }
