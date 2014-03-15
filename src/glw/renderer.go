@@ -61,12 +61,12 @@ func (renderer *renderer) SetUp() {
 		panic(err)
 	}
 
-	renderer.Vertices.SetUpVao(program)
-	renderer.Elements.SetUpVao(program)
+	renderer.Vertices.SetUp(program)
+	renderer.Elements.SetUp(program)
 	if renderer.Instances != nil {
-		renderer.Instances.SetUpVao(program)
+		renderer.Instances.SetUp(program)
 	}
-	renderer.Uniforms.SetUpVao(program)
+	renderer.Uniforms.SetUp(program)
 
 	renderer.unbind()
 }

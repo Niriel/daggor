@@ -9,7 +9,7 @@ import (
 type Uniforms interface {
 	SetLocation(glm.Matrix4)
 	SetGl()
-	SetUpVao(program gl.Program)
+	SetUp(program gl.Program)
 }
 
 //----------------------------------------------------------------------------
@@ -17,19 +17,19 @@ type Uniforms interface {
 // To use where there is no uniform to deal with.
 type UniformsNone struct{}
 
-func (unif *UniformsNone) SetUpVao(program gl.Program) {}
-func (unif *UniformsNone) SetGl()                      {}
+func (unif *UniformsNone) SetUp(program gl.Program) {}
+func (unif *UniformsNone) SetGl()                   {}
 
 //----------------------------------------------------------------------------
 type UniformsLoc struct {
-	// Filled when calling the SetUpVao method with a program.
+	// Filled when calling the SetUp method with a program.
 	globalMatricesUbi gl.UniformBlockIndex
 	modelLoc          gl.UniformLocation
 	// Filled when updating the uniform values.
 	location glm.Matrix4
 }
 
-func (unif *UniformsLoc) SetUpVao(program gl.Program) {
+func (unif *UniformsLoc) SetUp(program gl.Program) {
 	const modelLocName = "model_to_eye"
 	const matricesUbiName = "GlobalMatrices"
 
@@ -87,7 +87,7 @@ type UniformsLocInstanced struct {
 	textureLoc        gl.UniformLocation
 }
 
-func (unif *UniformsLocInstanced) SetUpVao(program gl.Program) {
+func (unif *UniformsLocInstanced) SetUp(program gl.Program) {
 	const matricesUbiName = "GlobalMatrices"
 
 	// Uniform Block for the View and Projection matrices.

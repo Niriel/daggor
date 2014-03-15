@@ -11,13 +11,15 @@ type ElementsUbyte struct {
 
 func NewElementsUbyte(usage gl.GLenum) *ElementsUbyte {
 	buffer := new(ElementsUbyte)
-	buffer.gen(gl.ELEMENT_ARRAY_BUFFER, usage)
+	buffer.target = gl.ELEMENT_ARRAY_BUFFER
+	buffer.usage = usage
 	return buffer
 }
 
-func (buffer *ElementsUbyte) SetUpVao(program gl.Program) {
+func (buffer *ElementsUbyte) SetUp(program gl.Program) {
 	// The ebo binding is part of the VAO state.  The only setup we need to
 	// do is to bind the ebo and leave it bound.
+	buffer.gen()
 	buffer.bind()
 }
 

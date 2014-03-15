@@ -90,33 +90,40 @@ type ModelMatInstances struct {
 	data []ModelMatInstance
 }
 
+// These constructors do not perform any OpenGL call.
+
 func NewVerticesXyz(usage gl.GLenum) *VerticesXyz {
 	buffer := new(VerticesXyz)
-	buffer.gen(gl.ARRAY_BUFFER, usage)
+	buffer.target = gl.ARRAY_BUFFER
+	buffer.usage = usage
 	return buffer
 }
 
 func NewVerticesXyzRgb(usage gl.GLenum) *VerticesXyzRgb {
 	buffer := new(VerticesXyzRgb)
-	buffer.gen(gl.ARRAY_BUFFER, usage)
+	buffer.target = gl.ARRAY_BUFFER
+	buffer.usage = usage
 	return buffer
 }
 
 func NewVerticesXyzNor(usage gl.GLenum) *VerticesXyzNor {
 	buffer := new(VerticesXyzNor)
-	buffer.gen(gl.ARRAY_BUFFER, usage)
+	buffer.target = gl.ARRAY_BUFFER
+	buffer.usage = usage
 	return buffer
 }
 
 func NewVerticesXyzNorUv(usage gl.GLenum) *VerticesXyzNorUv {
 	buffer := new(VerticesXyzNorUv)
-	buffer.gen(gl.ARRAY_BUFFER, usage)
+	buffer.target = gl.ARRAY_BUFFER
+	buffer.usage = usage
 	return buffer
 }
 
 func NewModelMatInstances(usage gl.GLenum) *ModelMatInstances {
 	buffer := new(ModelMatInstances)
-	buffer.gen(gl.ARRAY_BUFFER, usage)
+	buffer.target = gl.ARRAY_BUFFER
+	buffer.usage = usage
 	return buffer
 }
 
@@ -125,6 +132,7 @@ type locationDataSetter interface {
 }
 
 //-----------------------------------------------------------------------------
+// These SetData functions do not perform any OpenGL calls.
 
 func (buffer *VerticesXyz) SetData(vd []VertexXyz) {
 	buffer.data = make([]VertexXyz, len(vd), len(vd))
@@ -158,6 +166,9 @@ func (buffer *ModelMatInstances) SetLocationData(locations []glm.Matrix4) {
 	buffer.bufferdataClean = false
 }
 
+//-----------------------------------------------------------------------------
+// These Update functions talk to OpenGL.
+
 func (buffer *VerticesXyz) Update() {
 	buffer.update(buffer.data)
 }
@@ -181,8 +192,8 @@ func (buffer *ModelMatInstances) Update() {
 //=============================================================================
 
 // This section is about configuring the Vertex Array Object of a mesh.
-// The mesh calls SetUpVao which is a method of Vertices.
-// SetUpVao needs a gl Program object in order to query variable parameter
+// The mesh calls SetUp which is a method of Vertices.
+// SetUp needs a gl Program object in order to query variable parameter
 // names and all.
 
 // Since there is a lot of code common to all the Vertices object about how
@@ -190,32 +201,34 @@ func (buffer *ModelMatInstances) Update() {
 // containing what is specific to that Vertices object.  Then we pass it to
 // a generic function.
 
-func (buffer *VerticesXyz) SetUpVao(program gl.Program) {
-	bufferSetUpVao(buffer, program)
+func (buffer *VerticesXyz) SetUp(program gl.Program) {
+	bufferSetUp(buffer, program)
 }
-func (buffer *VerticesXyzRgb) SetUpVao(program gl.Program) {
-	bufferSetUpVao(buffer, program)
+func (buffer *VerticesXyzRgb) SetUp(program gl.Program) {
+	bufferSetUp(buffer, program)
 }
-func (buffer *VerticesXyzNor) SetUpVao(program gl.Program) {
-	bufferSetUpVao(buffer, program)
+func (buffer *VerticesXyzNor) SetUp(program gl.Program) {
+	bufferSetUp(buffer, program)
 }
-func (buffer *VerticesXyzNorUv) SetUpVao(program gl.Program) {
-	bufferSetUpVao(buffer, program)
+func (buffer *VerticesXyzNorUv) SetUp(program gl.Program) {
+	bufferSetUp(buffer, program)
 }
-func (buffer *ModelMatInstances) SetUpVao(program gl.Program) {
-	bufferSetUpVao(buffer, program)
+func (buffer *ModelMatInstances) SetUp(program gl.Program) {
+	bufferSetUp(buffer, program)
 }
 
-// The bufferSetUpVaoInt contains everything that is needed by the function
-// bufferSetUpVao.
-type bufferSetUpVaoInt interface {
+// The bufferSetUpInt contains everything that is needed by the function
+// bufferSetUp.
+type bufferSetUpInt interface {
 	names() []string
 	attribPointers([]gl.AttribLocation)
+	gen()
 	bind()
 	unbind()
 }
 
-func bufferSetUpVao(buffer bufferSetUpVaoInt, program gl.Program) {
+func bufferSetUp(buffer bufferSetUpInt, program gl.Program) {
+	buffer.gen()
 	buffer.bind()
 	// Collect the attrib locations for each attrib name.
 	atts_names := buffer.names() // Expected GLSL variable names.

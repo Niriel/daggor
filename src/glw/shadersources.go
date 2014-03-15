@@ -19,28 +19,72 @@ layout(std140) uniform GlobalMatrices
     mat4 eye_to_clip;
     mat4 eye_to_world;
 };
-out vec3 fnor_eye;
-out vec3 fnor_world; // Used to point to environment maps.
+out vec4 fpos_eye; // Fragment position in eye space.  For View vector.
+out vec4 fnor_eye;
+out vec4 fnor_world; // Used to point to environment maps.
 out vec2 fuv;
 void main(){
-	vec4 eyePos = model_to_eye * vec4(vpos, 1.0);
-	gl_Position = eye_to_clip * eyePos;
-	fnor_eye = (model_to_eye * vec4(vnor, 0.0)).xyz;
-    fnor_world = (eye_to_world * vec4(fnor_eye, 0.0)).xyz;
+	fpos_eye = model_to_eye * vec4(vpos, 1.0);
+	fnor_eye = model_to_eye * vec4(vnor, 0.0);
+    fnor_world = eye_to_world * fnor_eye;
 	fuv = vuv;
+	gl_Position = eye_to_clip * fpos_eye;
 }`},
 	FSH_NOR_UV: ShaderSeed{Type: FRAGMENT_SHADER, Source: `
 #version 330 core
 // Takes normal from vertex.
-in vec3 fnor_eye;
-in vec3 fnor_world; // Environment map is in world space.
+in vec4 fpos_eye;
+in vec4 fnor_eye;
+in vec4 fnor_world; // Environment map is in world space.
 in vec2 fuv;
 uniform samplerCube environment_map;
 uniform sampler2D albedo_map;
 uniform sampler2D normal_map;
 out vec3 color;
+
+#define PI       3.1415926535897932384626433832795
+#define TAU      6.2831853071795864769252867665590
+#define SQRT_TAU 2.5066282746310005024157652848110
+
+// Schlick approximation of Fresnel's reflectance.
+// cspec is a specular color defined for normal incidence.
+//     Typically 2..5 % for dielectrics, and 50..100 % for metals.
+//     Dielectrics: r=g=b.  In metals, it varies.
+//     Note that I don't see any reason to let alpha out; I treat it as a color
+//     until I have another use for it.  Just say it's UV.
+// l is the direction of the light.  It is pointing out of the surface.
+// h is half way between the direction of the light and that of the view.
+//     It makes sense because we are looking at the microfacets that reflect the
+//     light into our eyes, and these microfacets have a normal h.
+// Here, l and h must be in the same reference frame, it does not matter which
+// one.
+vec4 fresnel(vec4 cspec, vec3 l, vec3 h) {
+	float cosangle = max(0, dot(l, h));
+    return cspec + (1 - cspec ) * pow(1 - cosangle, 5);
+}
+
+// Normal distribution term of microfacets.
+// h is a direction pointing out of the surface.
+//     Currently expressed in the eye reference frame.  This may have to change
+//     when we start caring about anisotropy and/or normal mapping.
+float mfNormalDist(float sigma, vec3 v, vec3 h) {
+    // This is a "normal distribution".  Not to be confused with the normal
+	// distribution.  Yeah, same names for two things, amazing.  This whole
+	// function computes a distribution of normal vectors.  To do this, it
+	// uses a continuous probability distribution called "normal distribution".
+    // It's also called "gaussian".
+    float x = dot(h, v) - 1;
+	float si = 1 / sigma;
+	return SQRT_TAU * si * exp(-x*x*si*si*.5);
+}
+
 void main(){
 	vec3 normal_world = normalize(fnor_world);
+    // Surface albedo.
+	vec3 albedo = vec3(.1, .1, .1);
+    // Hardcoded sun light.
+	vec3 l_dir = normalize(vec3(1, -5, 10)); // World coordinates for now.
+    vec3 l_col = vec3(1, 1, .8);
 	// The 1000 here is an insanely high Level Of Detail which will fall down
 	// to the blurriest version of the texture there is.  This simulates the
 	// lambertian reflection model of a surface: the ray from your eye is
@@ -52,22 +96,11 @@ void main(){
 	// one side.  And a piece of paper held horizontally above a grass field
 	// will be greenish on the lower side, and white (sun+sky) on the upper
 	// side.
-	color = textureLod(environment_map, normal_world, 1000).rgb;
-
-	// Now, we must include an albedo: not everything reflects 100% of what it
-	// receives.  The albedo can be a single number or come from an albedo
-	// texture, which is akin to the diffuse texture in other games.
-    // Here is a table of albedos:
-	// Fresh asphalt 	0.04
-	// Worn asphalt 	0.12
-	// Conifer forest (Summer) 	0.08, 0.09 to 0.15
-	// Deciduous trees 	0.15 to 0.18
-	// Bare soil 	0.17
-	// Green grass 	0.25
-	// Desert sand 	0.40
-	// New concrete 	0.55
-	// Ocean ice 	0.5--0.7
-	// Fresh snow 	0.80--0.90
-    // Note that these albedos code the luminosity only, not the hue.
+	color = albedo * (
+	    textureLod(environment_map, normal_world, 1000).rgb +
+        l_col * max(dot(l_dir, normal_world), 0)
+	);
+	// Tone mapping.
+	color = color / (1+color);
 }`},
 }

@@ -10,7 +10,7 @@ import (
 type Buffer interface {
 	bind()
 	unbind()
-	SetUpVao(gl.Program)
+	SetUp(gl.Program)
 	// UpdateBuffer can be called every frame.  It does nothing if it has
 	// nothing to do.  If needed, it creates a VBO on the fly, and/or fills
 	// it with the OpenGL-friendly version of the Go-friendly vertexdata
@@ -24,7 +24,7 @@ type Buffer interface {
 // This base class is responsible for converting Go-friendly slices of
 // vertices into an OpenGL buffer.
 type baseBuffer struct {
-	// vbo is the Vertex Buffer Object in which we send the vertices.
+	// name refers to the OpenGL identifier for the buffer.
 	name gl.Buffer
 	// bufferdata is the binary data to send to the OpenGL buffer.
 	bufferdata []byte
@@ -36,11 +36,13 @@ type baseBuffer struct {
 	target gl.GLenum
 }
 
-func (buffer *baseBuffer) gen(target, usage gl.GLenum) {
+func (buffer *baseBuffer) gen() {
 	if buffer.name == 0 {
 		buffer.name = gl.GenBuffer()
-		buffer.target = target
-		buffer.usage = usage
+		if err := CheckGlError(); err != nil {
+			err.Description = "gl.GenBuffer()"
+			panic(err)
+		}
 	}
 }
 
