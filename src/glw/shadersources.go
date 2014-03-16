@@ -88,8 +88,8 @@ float mfNormalDist(float sigma, vec3 v, vec3 h) {
 }
 
 void main(){
-	vec3 normal_world = normalize(fnor_world);
-    vec3 normal_eye = normalize(fnor_eye);
+	vec3 normal_world = normalize(fnor_world.xyz);
+    vec3 normal_eye = normalize(fnor_eye.xyz);
 
 	// The 1000 here is an insanely high Level Of Detail which will fall down
 	// to the blurriest version of the texture there is.  This simulates the
@@ -107,8 +107,16 @@ void main(){
     // Lights.
 	for (uint i = 0; i < nb_lights; i++) {
         vec3 l_dir = lights[i].origin.xyz;
+        float att = 1;
+        if (lights[i].origin.w == 1) {
+			// Point light, so l_dir contains now the position of the point
+			// light, not the direction.
+            l_dir -= fpos_eye.xyz;
+            float distsq = dot(l_dir, l_dir);
+            att = 1/distsq;
+		}
         vec3 l_col = lights[i].color.rgb;
-        color += l_col * max(dot(l_dir, normal_eye), 0);
+        color += l_col * max(dot(l_dir, normal_eye), 0) * att;
     }
 
     // Surface albedo.

@@ -8,6 +8,7 @@ import (
 	"glm"
 	"glw"
 	"ia"
+	"math"
 	"runtime"
 	"sculpt"
 	"sort"
@@ -285,13 +286,23 @@ func render(programState programState) {
 
 	// Lights.
 	{
-		origin := glm.Vector3{1, 4, 1}.Normed().To4(0)
-		origin = worldToEye.MultV(origin)
-		light := glw.Light{
-			Color:  glm.Vector4{1, 0, 0, 0},
-			Origin: origin,
+		const T = 3000000000
+		t := programState.World.Time
+		phase := (2 * math.Pi) * float64(t) / T
+		lights := []glw.Light{
+			glw.Light{
+				Color: glm.Vector4{1, 0, 0, 0},
+				Origin: worldToEye.MultV(glm.Vector4{
+					3 + 2*math.Cos(phase),
+					0 + 1*math.Sin(phase),
+					.5 + .45*math.Cos(phase*6.321), 1,
+				}),
+			},
+			glw.Light{
+				Color:  glm.Vector4{0, .5, 0, 0},
+				Origin: worldToEye.MultV(glm.Vector4{0, 0, .1, 1}),
+			},
 		}
-		lights := []glw.Light{light}
 		programState.Gl.context.SetLights(lights)
 		programState.Gl.context.UpdateLights()
 	}

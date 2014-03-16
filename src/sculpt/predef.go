@@ -86,10 +86,10 @@ func WallInstNorm(programs glw.Programs) glw.Renderer {
 
 	vertexData := []glw.VertexXyzNorUv{
 		// position xyz, normal xyz, uv
-		glw.VertexXyzNorUv{p, p, M, 1, 0, 0, 0, 0},
-		glw.VertexXyzNorUv{p, m, M, 1, 0, 0, 1, 0},
-		glw.VertexXyzNorUv{p, p, P, 1, 0, 0, 0, 1},
-		glw.VertexXyzNorUv{p, m, P, 1, 0, 0, 1, 1},
+		glw.VertexXyzNorUv{p, p, M, -1, 0, 0, 0, 0},
+		glw.VertexXyzNorUv{p, m, M, -1, 0, 0, 1, 0},
+		glw.VertexXyzNorUv{p, p, P, -1, 0, 0, 0, 1},
+		glw.VertexXyzNorUv{p, m, P, -1, 0, 0, 1, 1},
 	}
 	return quadInstNorm(programs, vertexData)
 }
