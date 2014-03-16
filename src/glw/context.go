@@ -5,10 +5,14 @@ import (
 	"glm"
 )
 
-const CameraUboBindingPoint = 0
+const (
+	CameraUboBindingPoint = iota
+	LightUboBindingPoint
+)
 
 type GlContext struct {
 	cameraBuffer *CameraBuffer
+	lightBuffer  *LightBuffer
 	Programs     Programs
 	// The Program in use.  Set by ProgramBatch.  Usable by uniform batches
 	// when they need to validate their inputs before a draw call.
@@ -18,9 +22,10 @@ type GlContext struct {
 func NewGlContext() *GlContext {
 	programs := NewPrograms()
 	cameraBuffer := NewCameraBuffer(gl.STREAM_DRAW, CameraUboBindingPoint)
-	cameraBuffer.SetUp()
+	lightBuffer := NewLightBuffer(gl.STREAM_DRAW, LightUboBindingPoint)
 	return &GlContext{
 		cameraBuffer: cameraBuffer,
+		lightBuffer:  lightBuffer,
 		Programs:     programs,
 	}
 }
@@ -35,4 +40,12 @@ func (context *GlContext) SetEyeToWld(matrix glm.Matrix4) {
 
 func (context *GlContext) UpdateCamera() {
 	context.cameraBuffer.Update()
+}
+
+func (context *GlContext) SetLights(lights []Light) {
+	context.lightBuffer.SetLights(lights)
+}
+
+func (context *GlContext) UpdateLights() {
+	context.lightBuffer.Update()
 }

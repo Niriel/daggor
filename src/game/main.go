@@ -283,6 +283,20 @@ func render(programState programState) {
 	programState.Gl.context.SetEyeToWld(eyeToWorld)
 	programState.Gl.context.UpdateCamera()
 
+	// Lights.
+	{
+		origin := glm.Vector3{1, 4, 1}.Normed().To4(0)
+		origin = worldToEye.MultV(origin)
+		light := glw.Light{
+			Color:  glm.Vector4{1, 0, 0, 0},
+			Origin: origin,
+		}
+		lights := []glw.Light{light}
+		programState.Gl.context.SetLights(lights)
+		programState.Gl.context.UpdateLights()
+	}
+
+	// Geometry.
 	verticalPositions := make(map[world.ModelId]Positions)
 	horizontalPositions := make(map[world.ModelId]Positions)
 

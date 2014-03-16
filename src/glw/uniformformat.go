@@ -77,26 +77,31 @@ func (unif *UniformsLoc) SetGl() {
 //----------------------------------------------------------------------------
 
 type UniformsLocInstanced struct {
-	globalMatricesUbi gl.UniformBlockIndex
-	textureLoc        gl.UniformLocation
+	// First one is GlobalMatrices, second one is GlobalLights.
+	ubis       [2]gl.UniformBlockIndex
+	textureLoc gl.UniformLocation
 }
 
 func (unif *UniformsLocInstanced) SetUp(program gl.Program) {
-	const matricesUbiName = "GlobalMatrices"
+	const L = len(unif.ubis)
+	ubiNames := [L]string{"GlobalMatrices", "GlobalLights"}
+	ubiPoints := [L]uint{CameraUboBindingPoint, LightUboBindingPoint}
 
-	unif.globalMatricesUbi = program.GetUniformBlockIndex(matricesUbiName)
-	if err := CheckGlError(); err != nil {
-		err.Description = fmt.Sprintf("GetUniformBlockIndex(%#v)", matricesUbiName)
-		panic(err)
-	}
-	if unif.globalMatricesUbi == gl.INVALID_INDEX {
-		panic(fmt.Sprintf("GetUniformBlockIndex(%#v) returned INVALID_INDEX", matricesUbiName))
-	}
+	for i := 0; i < L; i++ {
+		unif.ubis[i] = program.GetUniformBlockIndex(ubiNames[i])
+		if err := CheckGlError(); err != nil {
+			err.Description = fmt.Sprintf("GetUniformBlockIndex(%#v)", ubiNames[i])
+			panic(err)
+		}
+		if unif.ubis[i] == gl.INVALID_INDEX {
+			panic(fmt.Sprintf("GetUniformBlockIndex(%#v) returned INVALID_INDEX", ubiNames[i]))
+		}
 
-	program.UniformBlockBinding(unif.globalMatricesUbi, CameraUboBindingPoint)
-	if err := CheckGlError(); err != nil {
-		err.Description = "UniformBlockBinding"
-		panic(err)
+		program.UniformBlockBinding(unif.ubis[i], ubiPoints[i])
+		if err := CheckGlError(); err != nil {
+			err.Description = "UniformBlockBinding"
+			panic(err)
+		}
 	}
 
 	unif.textureLoc = program.GetUniformLocation("environment_map")

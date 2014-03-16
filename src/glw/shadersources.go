@@ -3,9 +3,11 @@ package glw
 var SHADER_SOURCES = map[ShaderRef]ShaderSeed{
 	VSH_NOR_UV_INSTANCED: ShaderSeed{Type: VERTEX_SHADER, Source: `
 #version 330 core
-// Transmits the normal to the fragment shader.
-// The model matrix is not in a uniform.  This shader is
-// to be used with instanced rendering.
+
+layout(std140) uniform GlobalMatrices {
+    mat4 eye_to_clip;
+    mat4 eye_to_world;
+};
 
 layout(location = 0) in vec3 vpos;
 layout(location = 1) in vec3 vnor;
@@ -14,15 +16,11 @@ layout(location = 3) in mat4 model_to_eye; // Instanced attribute.
 // Note that the model_to_eye matrix occupies 4 attribute positions.
 // The next layout location would be 7.
 
-layout(std140) uniform GlobalMatrices
-{
-    mat4 eye_to_clip;
-    mat4 eye_to_world;
-};
 out vec4 fpos_eye; // Fragment position in eye space.  For View vector.
 out vec4 fnor_eye;
 out vec4 fnor_world; // Used to point to environment maps.
 out vec2 fuv;
+
 void main(){
 	fpos_eye = model_to_eye * vec4(vpos, 1.0);
 	fnor_eye = model_to_eye * vec4(vnor, 0.0);
@@ -32,11 +30,22 @@ void main(){
 }`},
 	FSH_NOR_UV: ShaderSeed{Type: FRAGMENT_SHADER, Source: `
 #version 330 core
-// Takes normal from vertex.
+
+#define NB_LIGHTS_MAX 100
+struct Light {
+	vec4 color;
+	vec4 origin;
+};
+layout(std140) uniform GlobalLights {
+    Light [NB_LIGHTS_MAX]lights;
+    uint nb_lights;
+};
+
 in vec4 fpos_eye;
 in vec4 fnor_eye;
 in vec4 fnor_world; // Environment map is in world space.
 in vec2 fuv;
+
 uniform samplerCube environment_map;
 uniform sampler2D albedo_map;
 uniform sampler2D normal_map;
@@ -80,11 +89,8 @@ float mfNormalDist(float sigma, vec3 v, vec3 h) {
 
 void main(){
 	vec3 normal_world = normalize(fnor_world);
-    // Surface albedo.
-	vec3 albedo = vec3(.1, .1, .1);
-    // Hardcoded sun light.
-	vec3 l_dir = normalize(vec3(1, -5, 10)); // World coordinates for now.
-    vec3 l_col = vec3(1, 1, .8);
+    vec3 normal_eye = normalize(fnor_eye);
+
 	// The 1000 here is an insanely high Level Of Detail which will fall down
 	// to the blurriest version of the texture there is.  This simulates the
 	// lambertian reflection model of a surface: the ray from your eye is
@@ -96,11 +102,20 @@ void main(){
 	// one side.  And a piece of paper held horizontally above a grass field
 	// will be greenish on the lower side, and white (sun+sky) on the upper
 	// side.
-	color = albedo * (
-	    textureLod(environment_map, normal_world, 1000).rgb +
-        l_col * max(dot(l_dir, normal_world), 0)
-	);
+	color = textureLod(environment_map, normal_world, 1000).rgb;
+
+    // Lights.
+	for (uint i = 0; i < nb_lights; i++) {
+        vec3 l_dir = lights[i].origin.xyz;
+        vec3 l_col = lights[i].color.rgb;
+        color += l_col * max(dot(l_dir, normal_eye), 0);
+    }
+
+    // Surface albedo.
+	vec3 albedo = vec3(.1, .1, .1);
+	color *= albedo;
+
 	// Tone mapping.
-	color = color / (1+color);
+	color /= 1+color;
 }`},
 }

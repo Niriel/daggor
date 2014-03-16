@@ -303,6 +303,23 @@ func (self Vector4) Gl() [4]float32 {
 	}
 }
 
+func (self Vector3) GlFloats() [3]gl.GLfloat {
+	return [3]gl.GLfloat{
+		gl.GLfloat(self[0]),
+		gl.GLfloat(self[1]),
+		gl.GLfloat(self[2]),
+	}
+}
+
+func (self Vector4) GlFloats() [4]gl.GLfloat {
+	return [4]gl.GLfloat{
+		gl.GLfloat(self[0]),
+		gl.GLfloat(self[1]),
+		gl.GLfloat(self[2]),
+		gl.GLfloat(self[3]),
+	}
+}
+
 func MakeTaitBryan(h, p, r int) TaitBryan {
 	if h < 0 || h > 3 {
 		panic(fmt.Sprintln("Heading out of bound: %i not in [0, 1, 2].", h))

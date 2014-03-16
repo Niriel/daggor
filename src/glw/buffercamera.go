@@ -8,40 +8,41 @@ import (
 const (
 	cameraBufferEyeToClp = iota
 	cameraBufferEyeToWld
-	cameraBufferMatrixNb
+	cameraBufferMatrixNb // Number of matrices.
 )
 
 type CameraBuffer struct {
 	baseBuffer
-	data         [][16]float32 // Bunch of matrices.
+	data         [cameraBufferMatrixNb][16]float32
 	bindingPoint uint
+	bound        bool
 }
 
 func NewCameraBuffer(usage gl.GLenum, bindingPoint uint) *CameraBuffer {
 	buffer := new(CameraBuffer)
 	buffer.target = gl.UNIFORM_BUFFER
 	buffer.usage = usage
-	buffer.data = make([][16]float32, cameraBufferMatrixNb)
 	buffer.bindingPoint = bindingPoint
 	return buffer
 }
 
-func (buffer *CameraBuffer) SetUp() {
-	buffer.gen()
-	buffer.bind()
-	// BindBufferBase complains with Invalid_Value if the buffer has no data
-	// store.  So we create its datastore by calling Update().
-	buffer.Update()
-	buffer.name.BindBufferBase(buffer.target, buffer.bindingPoint)
-	if err := CheckGlError(); err != nil {
-		err.Description = "BindBufferBase"
-		panic(err)
-	}
-	buffer.unbind()
-}
-
 func (buffer *CameraBuffer) Update() {
+	// Create the buffer if needed.
+	buffer.gen() // Does nothing if buffer is already created.
+	// Create/fill/update the buffer store.
 	buffer.update(buffer.data)
+	// BindBufferBase raises an error when called without a buffer store, or
+	// with an empty buffer store.
+	if len(buffer.bufferdata) > 0 && !buffer.bound {
+		buffer.bind()
+		buffer.name.BindBufferBase(buffer.target, buffer.bindingPoint)
+		if err := CheckGlError(); err != nil {
+			err.Description = "BindBufferBase"
+			panic(err)
+		}
+		buffer.unbind()
+		buffer.bound = true
+	}
 }
 
 // Data access.
